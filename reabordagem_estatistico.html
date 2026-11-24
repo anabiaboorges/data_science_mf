@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>O que dá para prever no WIN?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+:root {
+  /* paleta e fontes do deck do grupo (slides.html) */
+  --bg: #10151b;
+  --panel: #161d26;
+  --panel-2: #1c2530;
+  --ink: #ece9e2;
+  --ink-2: #c3c8cf;
+  --muted: #87929f;
+  --rule: #2a3542;
+  --arima: #8fa6cf;
+  --ml: #e9a53f;
+  --nn: #5fbcaa;
+  --good: #5fbcaa;
+  --bad: #de6a4f;
+  --cost: #de6a4f;
+  --barra: #3a4554;           /* barras neutras dos gráficos */
+  --arima-escuro: #2c3a50;    /* preenchimentos suaves */
+  --cost-escuro: #3b2420;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #0a0e12; color: var(--ink); font-family: var(--sans); }
+body { overflow: hidden; }
+
+/* ---------- palco 1280×720 escalado ---------- */
+#deck { position: fixed; inset: 0; display: grid; place-items: center; }
+.slide {
+  position: absolute; width: 1280px; height: 720px; background: var(--bg);
+  transform: scale(var(--escala, 1)); transform-origin: center center;
+  display: none; flex-direction: column; padding: 54px 80px 64px 112px; overflow: hidden;
+}
+.slide.ativo { display: flex; }
+
+/* trilho lateral com a parte da apresentação */
+.rail {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 64px; border-right: 1px solid var(--rule);
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 40px 0 32px;
+}
+.rail .num { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--c, var(--ink)); }
+.rail .lbl { writing-mode: vertical-rl; transform: rotate(180deg); font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+.rail .bar { width: 3px; flex: 1; margin: 18px 0; background: var(--c, var(--rule)); opacity: .9; }
+
+.kicker { font-family: var(--mono); font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--c, var(--muted)); margin-bottom: 14px; }
+h1 { font-size: 36px; line-height: 1.14; font-weight: 600; letter-spacing: -.01em; max-width: 1060px; }
+h1 em { font-style: normal; color: var(--c, var(--ml)); }
+h1 em.mau { color: var(--bad); }
+h1.longo { font-size: 32px; }
+h3 { font-size: 18px; font-weight: 600; line-height: 1.25; color: var(--ink); }
+p, li { font-size: 15.5px; line-height: 1.5; color: var(--ink-2); }
+strong, b { color: var(--ink); font-weight: 600; }
+sub { font-size: .7em; }
+
+.foot { position: absolute; left: 112px; right: 80px; bottom: 26px; display: flex; justify-content: space-between; gap: 24px;
+        font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+
+/* corpo */
+.corpo { flex: 1; min-height: 0; display: grid; gap: 28px; margin-top: 24px; align-items: start; align-content: start; }
+.l-texto-fig { grid-template-columns: 380px 1fr; }
+.l-fig-texto { grid-template-columns: 1fr 360px; }
+.l-tabela-texto { grid-template-columns: 1fr 290px; }
+.l-duas, .l-meio { grid-template-columns: 1fr 1fr; }
+.l-cheia { grid-template-columns: 1fr; gap: 16px; }
+.l-cheia .pilha { gap: 12px; }
+.l-cheia .tres > div { padding-top: 10px; }
+.l-cheia .tres p { font-size: 14px; line-height: 1.42; }
+.l-empilhada { grid-template-columns: 1fr; gap: 44px; margin-top: 56px; }
+.l-tres-cartoes { grid-template-columns: repeat(3, 1fr); gap: 28px; align-items: stretch; }
+
+.texto, .pilha { display: flex; flex-direction: column; gap: 14px; }
+.texto ul, .pilha ul, .cartao ul, .tres ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.texto li, .cartao li, .tres li { padding-left: 16px; position: relative; }
+.texto li::before, .cartao li::before, .tres li::before { content: ""; position: absolute; left: 0; top: 11px; width: 7px; height: 2px; background: var(--c, var(--muted)); }
+
+/* blocos (como .block do deck do grupo) */
+.tres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+.tres > div { display: flex; flex-direction: column; gap: 8px; border-top: 2px solid var(--c, var(--rule)); padding-top: 14px; }
+.cartao { display: flex; flex-direction: column; gap: 10px; border-top: 2px solid var(--c, var(--rule)); padding-top: 16px; }
+.cartao h3 { font-size: 20px; min-height: 2.5em; }   /* títulos de 1 ou 2 linhas: números grandes alinhados */
+.big { font-family: var(--mono); font-size: 46px; font-weight: 500; line-height: 1; color: var(--c, var(--ink)); margin-top: 4px; }
+.big small { font-size: 14px; color: var(--muted); margin-left: 8px; letter-spacing: 0; }
+.cartao .nota { margin-top: 6px; }
+.rotulo { align-self: flex-start; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+          padding: 3px 8px; border: 1px solid currentColor; color: var(--c, var(--muted)); }
+
+/* figuras */
+.fig { display: flex; flex-direction: column; gap: 8px; }
+.fig svg { display: block; width: 100%; height: auto; }
+.fig figcaption, .nota { font-size: 13px; line-height: 1.45; color: var(--muted); }
+.legenda { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--mono); font-size: 12px; line-height: 1.3; color: var(--muted); }
+.legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.legenda svg { width: 22px; height: 12px; }
+
+.destaque { border-left: 3px solid var(--c, var(--ml)); background: var(--panel); padding: 14px 18px; font-size: 16px; line-height: 1.45; color: var(--ink); }
+.destaque.largo { grid-column: 1 / -1; font-size: 18px; }
+.formula { font: 500 22px var(--mono); color: var(--ink); letter-spacing: -.01em; white-space: nowrap; }
+.formula.pequena { font-size: 17px; }
+
+/* tabelas */
+.tab { width: 100%; border-collapse: collapse; font-size: 15px; font-variant-numeric: tabular-nums; }
+.tab caption { text-align: left; font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-bottom: 8px; }
+.tab th { font-family: var(--mono); font-weight: 500; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+          text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--ink-2); vertical-align: bottom; }
+.tab th[scope="row"] { font: 600 14.5px/1.4 var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink);
+                       border-bottom: 1px solid var(--rule); vertical-align: top; white-space: nowrap; }
+.tab td { font-size: 14.5px; line-height: 1.4; padding: 8px 10px; border-bottom: 1px solid var(--rule); color: var(--ink-2); vertical-align: top; }
+.tab .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+.tab.comparacao td { padding: 5px 10px; font-size: 14px; }
+.tab.comparacao th.num { white-space: normal; }
+.tab tr.grupo td { font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 12px 10px 5px; }
+.tab tr.escolhida td { background: var(--panel-2); color: var(--ink); }
+.tab tr.escolhida td:first-child { box-shadow: inset 3px 0 0 var(--c, var(--ml)); }
+
+/* SVG */
+.sv-grade { stroke: var(--rule); stroke-width: 1; fill: none; }
+.sv-zero { stroke: var(--muted); stroke-width: 1; fill: none; }
+.sv-tick { font: 400 11.5px var(--mono); fill: var(--muted); }
+.sv-rot { font: 600 13.5px var(--sans); fill: var(--ink); }
+.sv-rot2 { font: 400 13px var(--sans); fill: var(--ink-2); }
+.sv-val { font: 500 12px var(--mono); fill: var(--ink); }
+.sv-dentro { font: 600 12px var(--sans); fill: var(--ink); }
+.f-azul { fill: var(--arima); } .f-azul-claro { fill: var(--arima-escuro); }
+.f-laranja { fill: var(--cost); } .f-laranja-claro { fill: var(--cost-escuro); }
+.f-cinza { fill: var(--muted); } .f-cinza-claro { fill: var(--barra); } .f-papel { fill: var(--panel); }
+.f-folha { fill: var(--bg); } .f-tinta { fill: var(--ink-2); }
+.s-azul { stroke: var(--arima); stroke-width: 2; fill: none; }
+.s-laranja { stroke: var(--cost); stroke-width: 1.6; fill: none; }
+.s-cinza { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+.s-tinta { stroke: var(--ink-2); stroke-width: 1.3; fill: none; }
+.s-hachura { stroke: #2b3644; stroke-width: 3; }
+.borda { stroke: var(--muted); stroke-width: 1.3; }
+.grosso { stroke-width: 2.6; } .fino { stroke-width: 1.3; }
+.tracejado { stroke-dasharray: 6 4; } .pontilhado { stroke-dasharray: 2 3; }
+.t-azul { fill: var(--arima); } .t-laranja { fill: var(--cost); } .t-folha { fill: var(--bg); }
+
+/* navegação */
+#nav { position: fixed; right: 18px; top: 14px; opacity: .35; transition: opacity .2s; display: flex; gap: 8px; align-items: center;
+       font-family: var(--mono); font-size: 12px; color: var(--muted); z-index: 10; }
+#nav:hover, #nav:focus-within { opacity: 1; }
+#nav button { background: #1b232d; color: var(--ink); border: 1px solid var(--rule); min-width: 30px; height: 30px; padding: 0 8px; cursor: pointer; font-family: var(--mono); }
+#nav button:hover { border-color: var(--ink-2); }
+#nav button:focus-visible { outline: 2px solid var(--arima); outline-offset: 2px; }
+#nav #contador { min-width: 52px; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* todos os slides, um embaixo do outro (tecla T) */
+body.todos { overflow: auto; }
+body.todos #deck { position: static; display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 56px 16px 40px; }
+body.todos .slide { display: flex; position: relative; transform: none; zoom: var(--escala-todos, 1); flex-shrink: 0; cursor: pointer; }
+
+/* impressão / PDF: um slide de 1280×720 por página */
+@media print {
+  @page { size: 1280px 720px; margin: 0; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html, body { overflow: visible; height: auto; background: var(--bg); }
+  #deck { position: static; display: block; padding: 0; }
+  #nav { display: none; }
+  .slide { display: flex !important; position: relative; transform: none !important; zoom: 1 !important; break-after: page; page-break-after: always; }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+}
+</style>
+</head>
+<body>
+<div id="deck">
+<section class="slide ativo" aria-label="Slide 1 de 8: custo por operação">
+  <div class="rail"><span class="num">·</span><span class="bar"></span><span class="lbl">Contexto</span></div>
+  <div class="kicker">Contexto · comum às frentes · custo por operação</div>
+  <h1>Cada operação custa <em>5 pontos</em>, e todo resultado é medido contra esse custo</h1>
+  <div class="corpo l-meio">
+<div class="pilha">
+  <table class="tab">
+    <thead><tr><th>Componente</th><th class="num">pts</th><th>Observação</th></tr></thead>
+    <tr><td>Taxas da B3, day trade</td><td class="num">2,5</td><td>≈ R$ 0,50 por operação completa</td></tr>
+    <tr><td>Corretagem</td><td class="num">0</td><td>zero na maioria das corretoras para minicontratos</td></tr>
+    <tr><td>Meio spread (meio tick)</td><td class="num">2,5</td><td>uma ponta a mercado, a outra com ordem limitada</td></tr>
+    <tr><td>Imposto</td><td class="num">–</td><td>20% do lucro mensal; não é custo por operação</td></tr>
+  </table>
+  <p class="nota">Na simulação, o take profit só executa se o preço passar 1 tick além do alvo.</p>
+</div>
+<div class="pilha">
+  <figure class="fig"><svg viewBox="0 0 560 214" role="img" aria-label="Custo adotado: 5 pontos por operação, 2,5 de taxas e 2,5 de meio spread"><text x="0.0" y="99.0" class="sv-rot" text-anchor="start">adotado</text><rect x="128.0" y="86.0" width="65.3" height="32.0" class="f-azul-claro"/><text x="160.7" y="107.0" class="sv-dentro" text-anchor="middle">taxas</text><rect x="193.3" y="86.0" width="65.3" height="32.0" class="f-azul"/><text x="226.0" y="107.0" class="sv-dentro t-folha" text-anchor="middle">spread</text><text x="266.7" y="107.0" class="sv-val" text-anchor="start">5 pts</text><text x="128.0" y="198.0" class="sv-tick" text-anchor="middle">0</text><text x="258.7" y="198.0" class="sv-tick" text-anchor="middle">5</text><text x="520.0" y="212.0" class="sv-tick" text-anchor="end">pontos por operação completa (1 ponto = R$ 0,20)</text></svg></figure>
+  <p class="destaque"><strong>Custo de equilíbrio:</strong> o maior custo que a estratégia aguenta sem perder dinheiro, ou seja, a esperança antes do custo. Cada estratégia é comparada com o custo de 5 pontos.</p>
+</div></div>
+  <div class="foot"><span>Taxas da B3 e corretoras · 1 ponto = R$ 0,20</span><span>1 / 8</span></div>
+</section>
+<section class="slide" style="--c: var(--arima)" aria-label="Slide 2 de 8: regra de operação">
+  <div class="rail"><span class="num">1</span><span class="bar"></span><span class="lbl">ARIMA</span></div>
+  <div class="kicker">1 · Primeira abordagem · modelos ARIMA · regra de operação</div>
+  <h1>Cada previsão vira uma operação de um candle, com <em>limiar, alvo e stop</em> escolhidos entre 36 regras</h1>
+  <div class="corpo l-cheia">
+<div class="pilha">
+<figure class="fig"><svg viewBox="0 0 1160 236" role="img" aria-label="À esquerda, a distribuição das previsões da ARIMAX com o limiar de 90%; à direita, o esquema de uma compra que sai no alvo, no stop ou no fechamento do candle seguinte"><text x="0.0" y="14.0" class="sv-rot" text-anchor="start">Limiar: só opera quando a previsão é forte</text><rect x="41.0" y="176.5" width="13.3" height="1.5" class="f-azul"/><rect x="56.3" y="177.7" width="13.3" height="0.3" class="f-azul"/><rect x="71.6" y="177.1" width="13.3" height="0.9" class="f-azul"/><rect x="86.9" y="177.1" width="13.3" height="0.9" class="f-azul"/><rect x="102.3" y="176.2" width="13.3" height="1.8" class="f-azul"/><rect x="117.6" y="175.5" width="13.3" height="2.5" class="f-azul"/><rect x="132.9" y="174.3" width="13.3" height="3.7" class="f-azul"/><rect x="148.2" y="173.7" width="13.3" height="4.3" class="f-azul"/><rect x="163.5" y="170.0" width="13.3" height="8.0" class="f-azul"/><rect x="178.8" y="165.4" width="13.3" height="12.6" class="f-azul"/><rect x="194.1" y="161.1" width="13.3" height="16.9" class="f-cinza-claro"/><rect x="209.4" y="164.8" width="13.3" height="13.2" class="f-cinza-claro"/><rect x="224.8" y="146.3" width="13.3" height="31.7" class="f-cinza-claro"/><rect x="240.1" y="129.4" width="13.3" height="48.6" class="f-cinza-claro"/><rect x="255.4" y="95.3" width="13.3" height="82.7" class="f-cinza-claro"/><rect x="270.7" y="44.0" width="13.3" height="134.0" class="f-cinza-claro"/><rect x="286.0" y="64.9" width="13.3" height="113.1" class="f-cinza-claro"/><rect x="301.3" y="96.9" width="13.3" height="81.1" class="f-cinza-claro"/><rect x="316.6" y="128.2" width="13.3" height="49.8" class="f-cinza-claro"/><rect x="331.9" y="147.9" width="13.3" height="30.1" class="f-cinza-claro"/><rect x="347.3" y="159.6" width="13.3" height="18.4" class="f-cinza-claro"/><rect x="362.6" y="168.8" width="13.3" height="9.2" class="f-cinza-claro"/><rect x="377.9" y="171.2" width="13.3" height="6.8" class="f-azul"/><rect x="393.2" y="172.2" width="13.3" height="5.8" class="f-azul"/><rect x="408.5" y="173.7" width="13.3" height="4.3" class="f-azul"/><rect x="423.8" y="174.9" width="13.3" height="3.1" class="f-azul"/><rect x="439.1" y="176.8" width="13.3" height="1.2" class="f-azul"/><rect x="454.4" y="176.5" width="13.3" height="1.5" class="f-azul"/><rect x="469.8" y="177.1" width="13.3" height="0.9" class="f-azul"/><rect x="485.1" y="176.8" width="13.3" height="1.2" class="f-azul"/><rect x="500.4" y="176.8" width="13.3" height="1.2" class="f-azul"/><rect x="515.7" y="176.8" width="13.3" height="1.2" class="f-azul"/><line x1="40.0" y1="178.0" x2="530.0" y2="178.0" class="sv-zero"/><line x1="197.0" y1="30.0" x2="197.0" y2="178.0" class="s-laranja tracejado"/><line x1="373.0" y1="30.0" x2="373.0" y2="178.0" class="s-laranja tracejado"/><text x="379.0" y="38.0" class="sv-rot2 t-laranja" text-anchor="start">limiar: ±0,029%</text><text x="285.0" y="38.0" class="sv-val" text-anchor="middle">fica de fora: 90%</text><text x="451.5" y="138.0" class="sv-val t-azul" text-anchor="middle">compra</text><text x="118.5" y="138.0" class="sv-val t-azul" text-anchor="middle">vende</text><text x="40.0" y="194.0" class="sv-tick" text-anchor="middle">−0,08%</text><text x="162.5" y="194.0" class="sv-tick" text-anchor="middle">−0,04%</text><text x="285.0" y="194.0" class="sv-tick" text-anchor="middle">0,00%</text><text x="407.5" y="194.0" class="sv-tick" text-anchor="middle">+0,04%</text><text x="530.0" y="194.0" class="sv-tick" text-anchor="middle">+0,08%</text><text x="285.0" y="212.0" class="sv-tick" text-anchor="middle">retorno previsto para a próxima hora</text><text x="620.0" y="14.0" class="sv-rot" text-anchor="start">Alvo e stop: a saída antecipada (esquema de uma compra)</text><line x1="760.0" y1="66.7" x2="1020.0" y2="66.7" class="s-azul"/><text x="752.0" y="70.7" class="sv-rot2 t-azul" text-anchor="end">alvo: +1× volatilidade</text><line x1="760.0" y1="120.0" x2="1020.0" y2="120.0" class="sv-zero"/><text x="752.0" y="124.0" class="sv-rot2" text-anchor="end">entrada</text><line x1="760.0" y1="173.3" x2="1020.0" y2="173.3" class="s-laranja"/><text x="752.0" y="177.3" class="sv-rot2 t-laranja" text-anchor="end">stop: −1× volatilidade</text><path d="M760.0 120.0 L790.0 106.7 L820.0 115.7 L855.0 90.7 L875.0 97.6 L900.0 66.7" class="s-azul"/><circle cx="900.0" cy="66.7" r="4.5" class="f-azul"/><text x="908.0" y="60.7" class="sv-tick" text-anchor="start">lucro de 1×</text><path d="M760.0 120.0 L785.0 134.9 L810.0 126.4 L845.0 153.1 L870.0 146.7 L910.0 173.3" class="s-laranja"/><circle cx="910.0" cy="173.3" r="4.5" class="f-laranja"/><text x="918.0" y="187.3" class="sv-tick" text-anchor="start">perda de 1×</text><path d="M760.0 120.0 L800.0 104.0 L835.0 129.6 L880.0 105.1 L920.0 124.3 L965.0 98.7 L1010.0 104.0" class="s-tinta"/><circle cx="1010.0" cy="104.0" r="4.5" class="f-tinta"/><text x="1018.0" y="108.0" class="sv-tick" text-anchor="start">sai no fechamento</text><circle cx="760.0" cy="120.0" r="4.5" class="f-tinta"/><text x="760.0" y="222.0" class="sv-tick" text-anchor="middle">fechamento de t</text><text x="1010.0" y="222.0" class="sv-tick" text-anchor="middle">fechamento de t+1</text></svg><figcaption>Esquerda: as 2.254 previsões da ARIMAX (60 min × 6 meses) na validação de 2024; 4 passam de ±0,08% e estão na barra da ponta. Direita: na venda, o alvo fica embaixo e o stop em cima; se o candle tocar os dois, conta o stop.</figcaption></figure>
+<div class="tres">
+  <div><h3>Limiar</h3><p>Opera só quando a previsão passa do limiar; senão, fica de fora. Quatro opções, medidas nas previsões
+    da validação: 0 (sempre), 50%, 75% ou 90%. Com 90%, a ARIMAX operou em 226 das 2.254 horas.</p></div>
+  <div><h3>Alvo e stop</h3><p>Entra no fechamento de um candle e sai no fechamento do seguinte, ou antes, se o preço tocar o alvo
+    (lucro) ou o stop (perda). As distâncias são nenhuma, 1× ou 2× a volatilidade do último pregão.</p></div>
+  <div><h3>Escolha</h3><p>4 limiares × 3 alvos × 3 stops = 36 regras por modelo. A de maior esperança na validação, com custo de
+    5 pts, foi congelada para o teste. Na ARIMAX: limiar de 90%, alvo de 1× e sem stop.</p></div>
+</div>
+</div></div>
+  <div class="foot"><span>Regra comum a todas as frentes do grupo · ARIMAX, 60 min × 6 meses · validação 2024</span><span>2 / 8</span></div>
+</section>
+<section class="slide" style="--c: var(--arima)" aria-label="Slide 3 de 8: o modelo">
+  <div class="rail"><span class="num">1</span><span class="bar"></span><span class="lbl">ARIMA</span></div>
+  <div class="kicker">1 · Primeira abordagem · modelos ARIMA · o modelo</div>
+  <h1>O modelo: a previsão da próxima hora combina o <em>último retorno</em> e o <em>último erro</em></h1>
+  <div class="corpo l-texto-fig">
+<div class="texto">
+  <div class="formula">r̂<sub>t+1</sub> = φ · r<sub>t</sub> + θ · e<sub>t</sub></div>
+  <ul>
+    <li><strong>r<sub>t</sub></strong>: o retorno do candle que acabou de fechar. <strong>e<sub>t</sub></strong>: o erro da última previsão, a surpresa.</li>
+    <li><strong>φ</strong> (parte AR): a fração do último retorno que continua. φ &gt; 0 é momentum; φ &lt; 0 é reversão.</li>
+    <li><strong>θ</strong> (parte MA): a correção pela última surpresa.</li>
+    <li>Se o retorno não tem memória, φ e θ ficam perto de zero, ou se anulam, e a previsão vira zero: o naive.</li>
+  </ul>
+</div>
+<div>
+  <table class="tab">
+    <caption>Como foi ajustado</caption>
+    <tr><th scope="row">Modelo</th><td>ARIMA(1,0,1) no log-retorno, sem constante; é o mesmo que ARIMA(1,1,1) no log-preço</td></tr>
+    <tr><th scope="row">Estimação</th><td>máxima verossimilhança (statsmodels): φ, θ e a variância do erro que tornam os dados observados mais prováveis</td></tr>
+    <tr><th scope="row">Candle</th><td>60 min, escolhido entre 1, 15 e 60 min</td></tr>
+    <tr><th scope="row">Janela de treino</th><td>últimos 6 meses, escolhida entre 1, 3, 6 e 12</td></tr>
+    <tr><th scope="row">Re-estimação</th><td>a cada trimestre; dentro dele, parâmetros fixos e previsão atualizada a cada candle, só com dados até t</td></tr>
+    <tr><th scope="row">Variantes</th><td>ARIMAX: + retorno do dólar (WDO) no candle atual · SARIMA: + o mesmo horário do pregão anterior · SARIMAX: as duas</td></tr>
+    <tr><th scope="row">Escolhas e teste</th><td>escolhas na validação de 2024; teste de 01/2025 a 03/2026, rodado uma vez</td></tr>
+  </table>
+</div></div>
+  <div class="foot"><span>Família ARIMA · candles de 60 min do WIN</span><span>3 / 8</span></div>
+</section>
+<section class="slide" style="--c: var(--arima)" aria-label="Slide 4 de 8: comparação dos modelos">
+  <div class="rail"><span class="num">1</span><span class="bar"></span><span class="lbl">ARIMA</span></div>
+  <div class="kicker">1 · Primeira abordagem · modelos ARIMA · comparação dos modelos</div>
+  <h1>Nenhum modelo da família ARIMA <em class="mau">erra menos que prever retorno zero</em></h1>
+  <div class="corpo l-tabela-texto">
+<div class="pilha">
+  <table class="tab comparacao"><thead><tr><th>Modelo</th><th class="num">Theil U</th><th class="num">Correlação com o real</th><th class="num">Acerto da direção</th><th class="num">Esperança (pts/op)</th></tr></thead><tbody><tr class="grupo"><td colspan="5">Validação 2024 · 60 min × 6 meses · melhor regra de cada um</td></tr><tr><td>ARIMA</td><td class="num">1,0016</td><td class="num">−0,012</td><td class="num">50,2%</td><td class="num">+1,4 ± 18</td></tr><tr class="escolhida"><td>ARIMAX · + dólar (escolhida)</td><td class="num">1,0043</td><td class="num">−0,016</td><td class="num">48,5%</td><td class="num">+10,2 ± 19</td></tr><tr><td>SARIMA · s = 9</td><td class="num">1,0018</td><td class="num">−0,007</td><td class="num">50,8%</td><td class="num">−0,7 ± 6</td></tr><tr><td>SARIMAX · s = 9</td><td class="num">1,0044</td><td class="num">−0,012</td><td class="num">49,5%</td><td class="num">+3,8 ± 13</td></tr><tr class="grupo"><td colspan="5">Validação 2024 · ARIMA em 12 combinações de candle e janela · opera sempre</td></tr><tr><td>ARIMA, 1 / 15 / 60 min × 1 / 3 / 6 / 12 m</td><td class="num">1,0000 a 1,0257</td><td class="num">−0,058 a +0,007</td><td class="num">47% a 52%</td><td class="num">−18,7 a −1,4</td></tr><tr class="grupo"><td colspan="5">Teste 01/2025 → 03/2026 · rodado uma vez</td></tr><tr class="escolhida"><td>ARIMAX · 214 operações</td><td class="num">1,0027</td><td class="num">−0,018</td><td class="num">49,2%</td><td class="num">−41,1 ± 42</td></tr></tbody></table>
+  <p class="nota">Theil U: erro do modelo ÷ erro de prever zero; abaixo de 1 seria melhor. Correlação entre a previsão e o retorno realizado. Esperança com custo de 5 pts, ± 1 erro-padrão; no primeiro bloco, com a melhor de 36 regras de operação de cada modelo. s: distância do termo sazonal em candles (9 = um pregão).</p>
+</div>
+<div class="texto"><ul><li>Theil U ≥ 1 em todas as linhas da tabela. O próximo slide mostra as 40 combinações de modelo, candle e janela.</li><li>A correlação da previsão com o retorno real fica entre −0,06 e +0,01: nenhuma habilidade de direção.</li><li>A ARIMAX foi escolhida pela maior esperança, +10 ± 19, entre 180 combinações de modelo e regra. A vantagem era menor que o erro. No teste, deu −41 ± 42.</li><li>O dólar reage junto com o índice (correlação de −0,47 no mesmo candle), e não antes (0,01 no candle seguinte).</li></ul></div></div>
+  <div class="foot"><span>Validação: 2024 · teste: 01/2025 → 03/2026 · custo de 5 pts por operação</span><span>4 / 8</span></div>
+</section>
+<section class="slide" style="--c: var(--arima)" aria-label="Slide 5 de 8: grade candle × janela">
+  <div class="rail"><span class="num">1</span><span class="bar"></span><span class="lbl">ARIMA</span></div>
+  <div class="kicker">1 · Primeira abordagem · modelos ARIMA · grade candle × janela</div>
+  <h1 class="longo">Nas 40 combinações de modelo, candle e janela, o erro fica no nível de prever zero ou acima, e a operação <em class="mau">sempre perde dinheiro</em></h1>
+  <div class="corpo l-cheia">
+<div class="pilha">
+<figure class="fig"><svg viewBox="0 0 1160 296" role="img" aria-label="Mapas de calor por tamanho de candle e janela de treino para ARIMA, ARIMAX, SARIMA e SARIMAX: Theil U e esperança por operação na validação de 2024"><defs><pattern id="hachura-grade" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="f-folha"/><line x1="0" y1="0" x2="0" y2="7" class="s-hachura"/></pattern></defs><text x="190.0" y="16.0" class="sv-rot" text-anchor="middle">ARIMA</text><text x="470.0" y="16.0" class="sv-rot" text-anchor="middle">ARIMAX</text><text x="750.0" y="16.0" class="sv-rot" text-anchor="middle">SARIMA</text><text x="1030.0" y="16.0" class="sv-rot" text-anchor="middle">SARIMAX</text><text x="0.0" y="32.0" class="sv-rot2" text-anchor="start">Theil U: erro do modelo ÷ erro de prever zero (1 = igual ao naive)</text><text x="62.0" y="61.0" class="sv-tick" text-anchor="end">1 min</text><text x="62.0" y="87.0" class="sv-tick" text-anchor="end">15 min</text><text x="62.0" y="113.0" class="sv-tick" text-anchor="end">60 min</text><g><title>ARIMA · 1 min × 1 m · Theil U: 1,00005</title><rect x="71" y="45" width="58" height="24" fill="#1D2028"/></g><text x="100.0" y="61.0" class="sv-val" text-anchor="middle">1,00005</text><g><title>ARIMA · 1 min × 3 m · Theil U: 1,00028</title><rect x="131" y="45" width="58" height="24" fill="#28242A"/></g><text x="160.0" y="61.0" class="sv-val" text-anchor="middle">1,00028</text><g><title>ARIMA · 1 min × 6 m · Theil U: 1,00024</title><rect x="191" y="45" width="58" height="24" fill="#272429"/></g><text x="220.0" y="61.0" class="sv-val" text-anchor="middle">1,00024</text><g><title>ARIMA · 1 min × 12 m · Theil U: 1,00014</title><rect x="251" y="45" width="58" height="24" fill="#232229"/></g><text x="280.0" y="61.0" class="sv-val" text-anchor="middle">1,00014</text><g><title>ARIMA · 15 min × 1 m · Theil U: 1,00143</title><rect x="71" y="71" width="58" height="24" fill="#3F2D2E"/></g><text x="100.0" y="87.0" class="sv-val" text-anchor="middle">1,00143</text><g><title>ARIMA · 15 min × 3 m · Theil U: 1,00077</title><rect x="131" y="71" width="58" height="24" fill="#34292C"/></g><text x="160.0" y="87.0" class="sv-val" text-anchor="middle">1,00077</text><g><title>ARIMA · 15 min × 6 m · Theil U: 1,00048</title><rect x="191" y="71" width="58" height="24" fill="#2E262B"/></g><text x="220.0" y="87.0" class="sv-val" text-anchor="middle">1,00048</text><g><title>ARIMA · 15 min × 12 m · Theil U: 1,00008</title><rect x="251" y="71" width="58" height="24" fill="#202128"/></g><text x="280.0" y="87.0" class="sv-val" text-anchor="middle">1,00008</text><g><title>ARIMA · 60 min × 1 m · Theil U: 1,02571</title><rect x="71" y="97" width="58" height="24" fill="#C4604A"/></g><text x="100.0" y="113.0" class="sv-val t-folha" text-anchor="middle">1,02571</text><g><title>ARIMA · 60 min × 3 m · Theil U: 1,00681</title><rect x="131" y="97" width="58" height="24" fill="#704038"/></g><text x="160.0" y="113.0" class="sv-val" text-anchor="middle">1,00681</text><g><title>ARIMA · 60 min × 6 m · Theil U: 1,00162</title><rect x="191" y="97" width="58" height="24" fill="#422E2F"/></g><text x="220.0" y="113.0" class="sv-val" text-anchor="middle">1,00162</text><g><title>ARIMA · 60 min × 12 m · Theil U: 1,00225</title><rect x="251" y="97" width="58" height="24" fill="#4A3131"/></g><text x="280.0" y="113.0" class="sv-val" text-anchor="middle">1,00225</text><rect x="192.0" y="98.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="100.0" y="138.0" class="sv-tick" text-anchor="middle">1 m</text><text x="160.0" y="138.0" class="sv-tick" text-anchor="middle">3 m</text><text x="220.0" y="138.0" class="sv-tick" text-anchor="middle">6 m</text><text x="280.0" y="138.0" class="sv-tick" text-anchor="middle">12 m</text><g><title>ARIMAX · 1 min × 1 m · Theil U: 0,99995</title><rect x="351" y="45" width="58" height="24" fill="#1B222D"/></g><text x="380.0" y="61.0" class="sv-val" text-anchor="middle">0,99995</text><g><title>ARIMAX · 1 min × 3 m · Theil U: 1,00073</title><rect x="411" y="45" width="58" height="24" fill="#33282C"/></g><text x="440.0" y="61.0" class="sv-val" text-anchor="middle">1,00073</text><g><title>ARIMAX · 1 min × 6 m · Theil U: 1,00051</title><rect x="471" y="45" width="58" height="24" fill="#2E262B"/></g><text x="500.0" y="61.0" class="sv-val" text-anchor="middle">1,00051</text><g><title>ARIMAX · 1 min × 12 m · Theil U: 1,00046</title><rect x="531" y="45" width="58" height="24" fill="#2D262B"/></g><text x="560.0" y="61.0" class="sv-val" text-anchor="middle">1,00046</text><g><title>ARIMAX · 15 min × 1 m · Theil U: 1,00644</title><rect x="351" y="71" width="58" height="24" fill="#6D3F38"/></g><text x="380.0" y="87.0" class="sv-val" text-anchor="middle">1,00644</text><g><title>ARIMAX · 15 min × 3 m · Theil U: 1,00189</title><rect x="411" y="71" width="58" height="24" fill="#452F30"/></g><text x="440.0" y="87.0" class="sv-val" text-anchor="middle">1,00189</text><g><title>ARIMAX · 15 min × 6 m · Theil U: 1,00054</title><rect x="471" y="71" width="58" height="24" fill="#2F272B"/></g><text x="500.0" y="87.0" class="sv-val" text-anchor="middle">1,00054</text><g><title>ARIMAX · 15 min × 12 m · Theil U: 1,00097</title><rect x="531" y="71" width="58" height="24" fill="#382A2D"/></g><text x="560.0" y="87.0" class="sv-val" text-anchor="middle">1,00097</text><g><title>ARIMAX · 60 min × 1 m · Theil U: 1,02983</title><rect x="351" y="97" width="58" height="24" fill="#D2654D"/></g><text x="380.0" y="113.0" class="sv-val t-folha" text-anchor="middle">1,02983</text><g><title>ARIMAX · 60 min × 3 m · Theil U: 1,00954</title><rect x="411" y="97" width="58" height="24" fill="#80463C"/></g><text x="440.0" y="113.0" class="sv-val" text-anchor="middle">1,00954</text><g><title>ARIMAX · 60 min × 6 m · Theil U: 1,00429</title><rect x="471" y="97" width="58" height="24" fill="#5D3835"/></g><text x="500.0" y="113.0" class="sv-val" text-anchor="middle">1,00429</text><g><title>ARIMAX · 60 min × 12 m · Theil U: 1,00464</title><rect x="531" y="97" width="58" height="24" fill="#603A35"/></g><text x="560.0" y="113.0" class="sv-val" text-anchor="middle">1,00464</text><rect x="472.0" y="98.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="380.0" y="138.0" class="sv-tick" text-anchor="middle">1 m</text><text x="440.0" y="138.0" class="sv-tick" text-anchor="middle">3 m</text><text x="500.0" y="138.0" class="sv-tick" text-anchor="middle">6 m</text><text x="560.0" y="138.0" class="sv-tick" text-anchor="middle">12 m</text><rect x="631" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="691" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="751" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="811" y="45" width="58" height="24" fill="url(#hachura-grade)"/><g><title>SARIMA · 15 min × 1 m · Theil U: 1,00218</title><rect x="631" y="71" width="58" height="24" fill="#493130"/></g><text x="660.0" y="87.0" class="sv-val" text-anchor="middle">1,00218</text><g><title>SARIMA · 15 min × 3 m · Theil U: 1,00068</title><rect x="691" y="71" width="58" height="24" fill="#32282C"/></g><text x="720.0" y="87.0" class="sv-val" text-anchor="middle">1,00068</text><g><title>SARIMA · 15 min × 6 m · Theil U: 1,00040</title><rect x="751" y="71" width="58" height="24" fill="#2C252A"/></g><text x="780.0" y="87.0" class="sv-val" text-anchor="middle">1,00040</text><g><title>SARIMA · 15 min × 12 m · Theil U: 0,99996</title><rect x="811" y="71" width="58" height="24" fill="#1A222C"/></g><text x="840.0" y="87.0" class="sv-val" text-anchor="middle">0,99996</text><g><title>SARIMA · 60 min × 1 m · Theil U: 1,02805</title><rect x="631" y="97" width="58" height="24" fill="#CC634B"/></g><text x="660.0" y="113.0" class="sv-val t-folha" text-anchor="middle">1,02805</text><g><title>SARIMA · 60 min × 3 m · Theil U: 1,00728</title><rect x="691" y="97" width="58" height="24" fill="#734139"/></g><text x="720.0" y="113.0" class="sv-val" text-anchor="middle">1,00728</text><g><title>SARIMA · 60 min × 6 m · Theil U: 1,00179</title><rect x="751" y="97" width="58" height="24" fill="#442F2F"/></g><text x="780.0" y="113.0" class="sv-val" text-anchor="middle">1,00179</text><g><title>SARIMA · 60 min × 12 m · Theil U: 1,00262</title><rect x="811" y="97" width="58" height="24" fill="#4E3231"/></g><text x="840.0" y="113.0" class="sv-val" text-anchor="middle">1,00262</text><rect x="752.0" y="98.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="660.0" y="138.0" class="sv-tick" text-anchor="middle">1 m</text><text x="720.0" y="138.0" class="sv-tick" text-anchor="middle">3 m</text><text x="780.0" y="138.0" class="sv-tick" text-anchor="middle">6 m</text><text x="840.0" y="138.0" class="sv-tick" text-anchor="middle">12 m</text><rect x="911" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="971" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="1031" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="1091" y="45" width="58" height="24" fill="url(#hachura-grade)"/><g><title>SARIMAX · 15 min × 1 m · Theil U: 1,00731</title><rect x="911" y="71" width="58" height="24" fill="#734139"/></g><text x="940.0" y="87.0" class="sv-val" text-anchor="middle">1,00731</text><g><title>SARIMAX · 15 min × 3 m · Theil U: 1,00184</title><rect x="971" y="71" width="58" height="24" fill="#452F30"/></g><text x="1000.0" y="87.0" class="sv-val" text-anchor="middle">1,00184</text><g><title>SARIMAX · 15 min × 6 m · Theil U: 1,00047</title><rect x="1031" y="71" width="58" height="24" fill="#2E262B"/></g><text x="1060.0" y="87.0" class="sv-val" text-anchor="middle">1,00047</text><g><title>SARIMAX · 15 min × 12 m · Theil U: 1,00084</title><rect x="1091" y="71" width="58" height="24" fill="#36292C"/></g><text x="1120.0" y="87.0" class="sv-val" text-anchor="middle">1,00084</text><g><title>SARIMAX · 60 min × 1 m · Theil U: 1,03381</title><rect x="911" y="97" width="58" height="24" fill="#DE6A4F"/></g><text x="940.0" y="113.0" class="sv-val t-folha" text-anchor="middle">1,03381</text><g><title>SARIMAX · 60 min × 3 m · Theil U: 1,01062</title><rect x="971" y="97" width="58" height="24" fill="#86483D"/></g><text x="1000.0" y="113.0" class="sv-val" text-anchor="middle">1,01062</text><g><title>SARIMAX · 60 min × 6 m · Theil U: 1,00439</title><rect x="1031" y="97" width="58" height="24" fill="#5E3935"/></g><text x="1060.0" y="113.0" class="sv-val" text-anchor="middle">1,00439</text><g><title>SARIMAX · 60 min × 12 m · Theil U: 1,00524</title><rect x="1091" y="97" width="58" height="24" fill="#653B36"/></g><text x="1120.0" y="113.0" class="sv-val" text-anchor="middle">1,00524</text><rect x="1032.0" y="98.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="940.0" y="138.0" class="sv-tick" text-anchor="middle">1 m</text><text x="1000.0" y="138.0" class="sv-tick" text-anchor="middle">3 m</text><text x="1060.0" y="138.0" class="sv-tick" text-anchor="middle">6 m</text><text x="1120.0" y="138.0" class="sv-tick" text-anchor="middle">12 m</text><text x="0.0" y="166.0" class="sv-rot2" text-anchor="start">Esperança por operação (pts), operando todo candle, sem regra de entrada e saída, custo de 5 pts</text><text x="62.0" y="195.0" class="sv-tick" text-anchor="end">1 min</text><text x="62.0" y="221.0" class="sv-tick" text-anchor="end">15 min</text><text x="62.0" y="247.0" class="sv-tick" text-anchor="end">60 min</text><g><title>ARIMA · 1 min × 1 m · esperança: −4,7</title><rect x="71" y="179" width="58" height="24" fill="#7A443B"/></g><text x="100.0" y="195.0" class="sv-val" text-anchor="middle">−4,7</text><g><title>ARIMA · 1 min × 3 m · esperança: −4,7</title><rect x="131" y="179" width="58" height="24" fill="#7A443B"/></g><text x="160.0" y="195.0" class="sv-val" text-anchor="middle">−4,7</text><g><title>ARIMA · 1 min × 6 m · esperança: −4,6</title><rect x="191" y="179" width="58" height="24" fill="#79433A"/></g><text x="220.0" y="195.0" class="sv-val" text-anchor="middle">−4,6</text><g><title>ARIMA · 1 min × 12 m · esperança: −4,5</title><rect x="251" y="179" width="58" height="24" fill="#79433A"/></g><text x="280.0" y="195.0" class="sv-val" text-anchor="middle">−4,5</text><g><title>ARIMA · 15 min × 1 m · esperança: −3,3</title><rect x="71" y="205" width="58" height="24" fill="#6A3D37"/></g><text x="100.0" y="221.0" class="sv-val" text-anchor="middle">−3,3</text><g><title>ARIMA · 15 min × 3 m · esperança: −5,3</title><rect x="131" y="205" width="58" height="24" fill="#80463C"/></g><text x="160.0" y="221.0" class="sv-val" text-anchor="middle">−5,3</text><g><title>ARIMA · 15 min × 6 m · esperança: −5,3</title><rect x="191" y="205" width="58" height="24" fill="#80463C"/></g><text x="220.0" y="221.0" class="sv-val" text-anchor="middle">−5,3</text><g><title>ARIMA · 15 min × 12 m · esperança: −7,1</title><rect x="251" y="205" width="58" height="24" fill="#914D3F"/></g><text x="280.0" y="221.0" class="sv-val" text-anchor="middle">−7,1</text><g><title>ARIMA · 60 min × 1 m · esperança: −10,9</title><rect x="71" y="231" width="58" height="24" fill="#AF5845"/></g><text x="100.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−10,9</text><g><title>ARIMA · 60 min × 3 m · esperança: −18,7</title><rect x="131" y="231" width="58" height="24" fill="#DE6A4F"/></g><text x="160.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−18,7</text><g><title>ARIMA · 60 min × 6 m · esperança: −1,4</title><rect x="191" y="231" width="58" height="24" fill="#4D3231"/></g><text x="220.0" y="247.0" class="sv-val" text-anchor="middle">−1,4</text><g><title>ARIMA · 60 min × 12 m · esperança: −16,8</title><rect x="251" y="231" width="58" height="24" fill="#D4664D"/></g><text x="280.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−16,8</text><rect x="192.0" y="232.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="100.0" y="272.0" class="sv-tick" text-anchor="middle">1 m</text><text x="160.0" y="272.0" class="sv-tick" text-anchor="middle">3 m</text><text x="220.0" y="272.0" class="sv-tick" text-anchor="middle">6 m</text><text x="280.0" y="272.0" class="sv-tick" text-anchor="middle">12 m</text><g><title>ARIMAX · 1 min × 1 m · esperança: −5,0</title><rect x="351" y="179" width="58" height="24" fill="#7D453B"/></g><text x="380.0" y="195.0" class="sv-val" text-anchor="middle">−5,0</text><g><title>ARIMAX · 1 min × 3 m · esperança: −4,8</title><rect x="411" y="179" width="58" height="24" fill="#7B443B"/></g><text x="440.0" y="195.0" class="sv-val" text-anchor="middle">−4,8</text><g><title>ARIMAX · 1 min × 6 m · esperança: −4,6</title><rect x="471" y="179" width="58" height="24" fill="#79433A"/></g><text x="500.0" y="195.0" class="sv-val" text-anchor="middle">−4,6</text><g><title>ARIMAX · 1 min × 12 m · esperança: −4,5</title><rect x="531" y="179" width="58" height="24" fill="#78433A"/></g><text x="560.0" y="195.0" class="sv-val" text-anchor="middle">−4,5</text><g><title>ARIMAX · 15 min × 1 m · esperança: −7,8</title><rect x="351" y="205" width="58" height="24" fill="#974F41"/></g><text x="380.0" y="221.0" class="sv-val t-folha" text-anchor="middle">−7,8</text><g><title>ARIMAX · 15 min × 3 m · esperança: −6,0</title><rect x="411" y="205" width="58" height="24" fill="#88493D"/></g><text x="440.0" y="221.0" class="sv-val" text-anchor="middle">−6,0</text><g><title>ARIMAX · 15 min × 6 m · esperança: −3,7</title><rect x="471" y="205" width="58" height="24" fill="#6F3F38"/></g><text x="500.0" y="221.0" class="sv-val" text-anchor="middle">−3,7</text><g><title>ARIMAX · 15 min × 12 m · esperança: −5,3</title><rect x="531" y="205" width="58" height="24" fill="#80463C"/></g><text x="560.0" y="221.0" class="sv-val" text-anchor="middle">−5,3</text><g><title>ARIMAX · 60 min × 1 m · esperança: −9,2</title><rect x="351" y="231" width="58" height="24" fill="#A25343"/></g><text x="380.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−9,2</text><g><title>ARIMAX · 60 min × 3 m · esperança: −14,4</title><rect x="411" y="231" width="58" height="24" fill="#C5614A"/></g><text x="440.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−14,4</text><g><title>ARIMAX · 60 min × 6 m · esperança: −16,4</title><rect x="471" y="231" width="58" height="24" fill="#D1654C"/></g><text x="500.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−16,4</text><g><title>ARIMAX · 60 min × 12 m · esperança: −15,5</title><rect x="531" y="231" width="58" height="24" fill="#CC634B"/></g><text x="560.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−15,5</text><rect x="472.0" y="232.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="380.0" y="272.0" class="sv-tick" text-anchor="middle">1 m</text><text x="440.0" y="272.0" class="sv-tick" text-anchor="middle">3 m</text><text x="500.0" y="272.0" class="sv-tick" text-anchor="middle">6 m</text><text x="560.0" y="272.0" class="sv-tick" text-anchor="middle">12 m</text><rect x="631" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="691" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="751" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="811" y="179" width="58" height="24" fill="url(#hachura-grade)"/><g><title>SARIMA · 15 min × 1 m · esperança: −5,1</title><rect x="631" y="205" width="58" height="24" fill="#7E453B"/></g><text x="660.0" y="221.0" class="sv-val" text-anchor="middle">−5,1</text><g><title>SARIMA · 15 min × 3 m · esperança: −5,0</title><rect x="691" y="205" width="58" height="24" fill="#7E453B"/></g><text x="720.0" y="221.0" class="sv-val" text-anchor="middle">−5,0</text><g><title>SARIMA · 15 min × 6 m · esperança: −3,8</title><rect x="751" y="205" width="58" height="24" fill="#704038"/></g><text x="780.0" y="221.0" class="sv-val" text-anchor="middle">−3,8</text><g><title>SARIMA · 15 min × 12 m · esperança: −2,9</title><rect x="811" y="205" width="58" height="24" fill="#653B36"/></g><text x="840.0" y="221.0" class="sv-val" text-anchor="middle">−2,9</text><g><title>SARIMA · 60 min × 1 m · esperança: −15,7</title><rect x="631" y="231" width="58" height="24" fill="#CD644C"/></g><text x="660.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−15,7</text><g><title>SARIMA · 60 min × 3 m · esperança: −15,7</title><rect x="691" y="231" width="58" height="24" fill="#CD644C"/></g><text x="720.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−15,7</text><g><title>SARIMA · 60 min × 6 m · esperança: −3,5</title><rect x="751" y="231" width="58" height="24" fill="#6C3E38"/></g><text x="780.0" y="247.0" class="sv-val" text-anchor="middle">−3,5</text><g><title>SARIMA · 60 min × 12 m · esperança: −4,0</title><rect x="811" y="231" width="58" height="24" fill="#734139"/></g><text x="840.0" y="247.0" class="sv-val" text-anchor="middle">−4,0</text><rect x="752.0" y="232.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="660.0" y="272.0" class="sv-tick" text-anchor="middle">1 m</text><text x="720.0" y="272.0" class="sv-tick" text-anchor="middle">3 m</text><text x="780.0" y="272.0" class="sv-tick" text-anchor="middle">6 m</text><text x="840.0" y="272.0" class="sv-tick" text-anchor="middle">12 m</text><rect x="911" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="971" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="1031" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="1091" y="179" width="58" height="24" fill="url(#hachura-grade)"/><g><title>SARIMAX · 15 min × 1 m · esperança: −8,1</title><rect x="911" y="205" width="58" height="24" fill="#9A5041"/></g><text x="940.0" y="221.0" class="sv-val t-folha" text-anchor="middle">−8,1</text><g><title>SARIMAX · 15 min × 3 m · esperança: −4,4</title><rect x="971" y="205" width="58" height="24" fill="#77423A"/></g><text x="1000.0" y="221.0" class="sv-val" text-anchor="middle">−4,4</text><g><title>SARIMAX · 15 min × 6 m · esperança: −3,5</title><rect x="1031" y="205" width="58" height="24" fill="#6C3E38"/></g><text x="1060.0" y="221.0" class="sv-val" text-anchor="middle">−3,5</text><g><title>SARIMAX · 15 min × 12 m · esperança: −5,2</title><rect x="1091" y="205" width="58" height="24" fill="#7F463C"/></g><text x="1120.0" y="221.0" class="sv-val" text-anchor="middle">−5,2</text><g><title>SARIMAX · 60 min × 1 m · esperança: −16,2</title><rect x="911" y="231" width="58" height="24" fill="#D0654C"/></g><text x="940.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−16,2</text><g><title>SARIMAX · 60 min × 3 m · esperança: −11,9</title><rect x="971" y="231" width="58" height="24" fill="#B55A47"/></g><text x="1000.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−11,9</text><g><title>SARIMAX · 60 min × 6 m · esperança: −9,5</title><rect x="1031" y="231" width="58" height="24" fill="#A55443"/></g><text x="1060.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−9,5</text><g><title>SARIMAX · 60 min × 12 m · esperança: −12,0</title><rect x="1091" y="231" width="58" height="24" fill="#B65B47"/></g><text x="1120.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−12,0</text><rect x="1032.0" y="232.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="940.0" y="272.0" class="sv-tick" text-anchor="middle">1 m</text><text x="1000.0" y="272.0" class="sv-tick" text-anchor="middle">3 m</text><text x="1060.0" y="272.0" class="sv-tick" text-anchor="middle">6 m</text><text x="1120.0" y="272.0" class="sv-tick" text-anchor="middle">12 m</text><text x="610.0" y="290.0" class="sv-tick" text-anchor="middle">janela de treino (meses)</text></svg><p class="legenda"><span><svg viewBox="0 0 34 12" aria-hidden="true" style="width:34px"><rect x="1" y="1" width="7" height="10" fill="#483030"/><rect x="9" y="1" width="7" height="10" fill="#7A443A"/><rect x="17" y="1" width="7" height="10" fill="#AC5745"/><rect x="25" y="1" width="7" height="10" fill="#DE6A4F"/></svg>pior que a referência</span><span><svg viewBox="0 0 34 12" aria-hidden="true" style="width:34px"><rect x="1" y="1" width="7" height="10" fill="#343F50"/><rect x="9" y="1" width="7" height="10" fill="#52627A"/><rect x="17" y="1" width="7" height="10" fill="#7184A5"/><rect x="25" y="1" width="7" height="10" fill="#8FA6CF"/></svg>melhor que a referência</span><span><svg viewBox="0 0 22 12" aria-hidden="true"><rect x="3" y="1" width="16" height="10" fill="url(#hachura-grade)" class="borda"/></svg>não estimado</span><span><svg viewBox="0 0 22 12" aria-hidden="true"><rect x="4" y="1" width="14" height="10" class="s-tinta tracejado"/></svg>60 min × 6 meses: escolhida com o ARIMA e aplicada às variantes</span></p><figcaption>Referência: Theil U = 1 (prever zero) e esperança = 0. Mesmo walk-forward da frente, com retreino trimestral. SARIMA e SARIMAX não foram estimados em 1 min: o termo sazonal ficaria a ~565 candles.</figcaption></figure>
+<div class="tres">
+  <div><p>Theil U de 0,99995 a 1,034. As 2 combinações abaixo de 1 erram
+    no máximo 0,005% menos que prever zero, e mesmo assim perdem dinheiro.</p></div>
+  <div><p>Esperança operando todo candle, sem regra: de −1,4 a −18,7 pts. A ARIMAX tem
+    −16,4 aqui e +10,2 com a melhor regra (slide anterior).</p></div>
+  <div><p>60 min × 6 meses foi escolhida com o ARIMA, a maior esperança das 40, e depois aplicada às variantes.</p></div>
+</div>
+</div></div>
+  <div class="foot"><span>Validação 2024 · ARIMA(1,0,1), ARIMAX, SARIMA e SARIMAX · candles de 1, 15 e 60 min × janelas de 1, 3, 6 e 12 meses</span><span>5 / 8</span></div>
+</section>
+<section class="slide" style="--c: var(--arima)" aria-label="Slide 6 de 8: parâmetros do ARIMA">
+  <div class="rail"><span class="num">1</span><span class="bar"></span><span class="lbl">ARIMA</span></div>
+  <div class="kicker">1 · Primeira abordagem · modelos ARIMA · parâmetros do ARIMA</div>
+  <h1>O ARIMA não achou estrutura, e <em>os próprios parâmetros</em> mostram isso</h1>
+  <div class="corpo l-texto-fig">
+<div class="texto"><ul><li>Em quase todo trimestre, <strong>φ ≈ −θ</strong>: a parte AR e a parte MA se anulam, o modelo vira ruído branco e a melhor previsão passa a ser zero.</li><li>Com φ = −θ, qualquer valor de φ descreve o mesmo modelo. Os dados não têm como escolher um, e por isso φ pula de −0,96 a +0,89 entre trimestres. Não é o mercado mudando.</li><li>A autocorrelação que o modelo ajustado implica fica perto de zero em todos os trimestres, entre −0,10 e +0,06.</li><li>A previsão fica colada em zero: desvio de 0,016%, contra 0,288% do retorno real.</li></ul></div>
+<figure class="fig"><svg viewBox="0 0 560 292" role="img" aria-label="Em cada trimestre, phi e menos theta quase coincidem: as partes AR e MA se anulam"><line x1="50.0" y1="250.0" x2="548.0" y2="250.0" class="sv-grade"/><text x="42.0" y="254.0" class="sv-tick" text-anchor="end">−1,0</text><line x1="50.0" y1="197.5" x2="548.0" y2="197.5" class="sv-grade"/><text x="42.0" y="201.5" class="sv-tick" text-anchor="end">−0,5</text><line x1="50.0" y1="92.5" x2="548.0" y2="92.5" class="sv-grade"/><text x="42.0" y="96.5" class="sv-tick" text-anchor="end">0,5</text><line x1="50.0" y1="40.0" x2="548.0" y2="40.0" class="sv-grade"/><text x="42.0" y="44.0" class="sv-tick" text-anchor="end">1,0</text><line x1="50.0" y1="145.0" x2="548.0" y2="145.0" class="sv-zero"/><text x="42.0" y="149.0" class="sv-tick" text-anchor="end">0</text><circle cx="77.7" cy="117.7" r="9" class="s-laranja grosso"/><circle cx="77.7" cy="114.5" r="5.5" class="f-azul"/><text x="77.7" y="272.0" class="sv-tick" text-anchor="middle">jan/24</text><circle cx="133.0" cy="51.5" r="9" class="s-laranja grosso"/><circle cx="133.0" cy="51.5" r="5.5" class="f-azul"/><text x="133.0" y="272.0" class="sv-tick" text-anchor="middle">abr/24</text><circle cx="188.3" cy="154.4" r="9" class="s-laranja grosso"/><circle cx="188.3" cy="159.7" r="5.5" class="f-azul"/><text x="188.3" y="272.0" class="sv-tick" text-anchor="middle">jul/24</text><circle cx="243.7" cy="79.9" r="9" class="s-laranja grosso"/><circle cx="243.7" cy="76.8" r="5.5" class="f-azul"/><text x="243.7" y="272.0" class="sv-tick" text-anchor="middle">out/24</text><circle cx="299.0" cy="210.1" r="9" class="s-laranja grosso"/><circle cx="299.0" cy="213.2" r="5.5" class="f-azul"/><text x="299.0" y="272.0" class="sv-tick" text-anchor="middle">jan/25</text><circle cx="354.3" cy="244.8" r="9" class="s-laranja grosso"/><circle cx="354.3" cy="245.8" r="5.5" class="f-azul"/><text x="354.3" y="272.0" class="sv-tick" text-anchor="middle">abr/25</text><circle cx="409.7" cy="140.8" r="9" class="s-laranja grosso"/><circle cx="409.7" cy="145.0" r="5.5" class="f-azul"/><text x="409.7" y="272.0" class="sv-tick" text-anchor="middle">jul/25</text><circle cx="465.0" cy="149.2" r="9" class="s-laranja grosso"/><circle cx="465.0" cy="159.7" r="5.5" class="f-azul"/><text x="465.0" y="272.0" class="sv-tick" text-anchor="middle">out/25</text><circle cx="520.3" cy="92.5" r="9" class="s-laranja grosso"/><circle cx="520.3" cy="86.2" r="5.5" class="f-azul"/><text x="520.3" y="272.0" class="sv-tick" text-anchor="middle">jan/26</text><circle cx="58.0" cy="14.0" r="5.5" class="f-azul"/><text x="70.0" y="18.0" class="sv-rot2" text-anchor="start">φ (parte AR)</text><circle cx="190.0" cy="14.0" r="9" class="s-laranja grosso"/><text x="206.0" y="18.0" class="sv-rot2" text-anchor="start">−θ (parte MA, com o sinal trocado)</text></svg><figcaption>ARIMAX, 60 min × 6 meses: um ajuste por trimestre, parâmetros fixos dentro dele.</figcaption></figure></div>
+  <div class="foot"><span>ARIMAX, 60 min × 6 meses · validação 2024 e teste 01/2025 → 03/2026</span><span>6 / 8</span></div>
+</section>
+<section class="slide" style="--c: var(--arima)" aria-label="Slide 7 de 8: aleatório nos mesmos candles">
+  <div class="rail"><span class="num">1</span><span class="bar"></span><span class="lbl">ARIMA</span></div>
+  <div class="kicker">1 · Primeira abordagem · modelos ARIMA · aleatório nos mesmos candles</div>
+  <h1>Comparado do jeito certo, o modelo é <em class="mau">indistinguível de sinais aleatórios</em></h1>
+  <div class="corpo l-fig-texto">
+<figure class="fig"><svg viewBox="0 0 620 286" role="img" aria-label="Histograma de 2.000 sorteios aleatórios nos mesmos candles; o modelo fica no meio da distribuição"><rect x="41.0" y="236.0" width="16.8" height="0.0" class="f-cinza-claro"/><rect x="59.8" y="236.0" width="16.8" height="0.0" class="f-cinza-claro"/><rect x="78.6" y="236.0" width="16.8" height="0.0" class="f-cinza-claro"/><rect x="97.4" y="235.2" width="16.8" height="0.8" class="f-cinza-claro"/><rect x="116.2" y="234.4" width="16.8" height="1.6" class="f-cinza-claro"/><rect x="135.0" y="232.8" width="16.8" height="3.2" class="f-cinza-claro"/><rect x="153.8" y="230.4" width="16.8" height="5.6" class="f-cinza-claro"/><rect x="172.6" y="223.9" width="16.8" height="12.1" class="f-cinza-claro"/><rect x="191.4" y="219.9" width="16.8" height="16.1" class="f-cinza-claro"/><rect x="210.2" y="205.4" width="16.8" height="30.6" class="f-cinza-claro"/><rect x="229.0" y="172.3" width="16.8" height="63.7" class="f-cinza-claro"/><rect x="247.8" y="154.6" width="16.8" height="81.4" class="f-cinza-claro"/><rect x="266.6" y="125.6" width="16.8" height="110.4" class="f-cinza-claro"/><rect x="285.4" y="102.2" width="16.8" height="133.8" class="f-cinza-claro"/><rect x="304.2" y="68.3" width="16.8" height="167.7" class="f-cinza-claro"/><rect x="323.0" y="77.2" width="16.8" height="158.8" class="f-cinza-claro"/><rect x="341.8" y="88.5" width="16.8" height="147.5" class="f-cinza-claro"/><rect x="360.6" y="65.1" width="16.8" height="170.9" class="f-cinza-claro"/><rect x="379.4" y="103.8" width="16.8" height="132.2" class="f-cinza-claro"/><rect x="398.2" y="124.7" width="16.8" height="111.3" class="f-cinza-claro"/><rect x="417.0" y="142.5" width="16.8" height="93.5" class="f-cinza-claro"/><rect x="435.8" y="173.1" width="16.8" height="62.9" class="f-cinza-claro"/><rect x="454.6" y="189.2" width="16.8" height="46.8" class="f-cinza-claro"/><rect x="473.4" y="204.6" width="16.8" height="31.4" class="f-cinza-claro"/><rect x="492.2" y="223.1" width="16.8" height="12.9" class="f-cinza-claro"/><rect x="511.0" y="226.3" width="16.8" height="9.7" class="f-cinza-claro"/><rect x="529.8" y="232.8" width="16.8" height="3.2" class="f-cinza-claro"/><rect x="548.6" y="234.4" width="16.8" height="1.6" class="f-cinza-claro"/><rect x="567.4" y="234.4" width="16.8" height="1.6" class="f-cinza-claro"/><rect x="586.2" y="236.0" width="16.8" height="0.0" class="f-cinza-claro"/><line x1="40.0" y1="236.0" x2="604.0" y2="236.0" class="sv-zero"/><line x1="230.9" y1="252.0" x2="462.0" y2="252.0" class="s-tinta"/><line x1="230.9" y1="247.0" x2="230.9" y2="257.0" class="s-tinta"/><line x1="462.0" y1="247.0" x2="462.0" y2="257.0" class="s-tinta"/><text x="346.5" y="247.0" class="sv-tick" text-anchor="middle">90% dos sorteios</text><line x1="282.2" y1="36.0" x2="282.2" y2="236.0" class="s-laranja grosso"/><text x="274.2" y="28.0" class="sv-rot t-laranja" text-anchor="end">modelo: −41 (percentil 19)</text><line x1="408.4" y1="36.0" x2="408.4" y2="236.0" class="s-azul tracejado"/><text x="416.4" y="28.0" class="sv-rot t-azul" text-anchor="start">sinal invertido: +26</text><text x="77.6" y="272.0" class="sv-tick" text-anchor="middle">−150</text><text x="171.6" y="272.0" class="sv-tick" text-anchor="middle">−100</text><text x="265.6" y="272.0" class="sv-tick" text-anchor="middle">−50</text><text x="359.6" y="272.0" class="sv-tick" text-anchor="middle">0</text><text x="453.6" y="272.0" class="sv-tick" text-anchor="middle">+50</text><text x="547.6" y="272.0" class="sv-tick" text-anchor="middle">+100</text><text x="604.0" y="284.0" class="sv-tick" text-anchor="end">esperança por operação (pts), custo de 5 pts</text></svg><figcaption>2.000 sorteios de direção nos mesmos 214 candles do modelo, com a mesma regra (limiar 90%, take profit 1×, sem stop, custo de 5 pts). Média dos sorteios: −7,9 pts.</figcaption></figure>
+<div class="texto"><ul><li>A primeira comparação punha o aleatório para operar todos os 2.791 candles do teste. O modelo operou só 214, escolhidos pelo limiar, que pega candles mais voláteis.</li><li>Comparação justa: direções sorteadas nos mesmos 214 candles, com a mesma regra. 90% dos sorteios ficam entre −68 e +54 pts por operação.</li><li>O modelo (−41) fica no percentil 19. Com o sinal invertido, daria +26.</li></ul></div></div>
+  <div class="foot"><span>Teste 01/2025 → 03/2026 · 214 operações do modelo</span><span>7 / 8</span></div>
+</section>
+<section class="slide" style="--c: var(--arima)" aria-label="Slide 8 de 8: conclusão">
+  <div class="rail"><span class="num">·</span><span class="bar"></span><span class="lbl">Conclusão</span></div>
+  <div class="kicker">Fechamento · conclusão</div>
+  <h1>A família ARIMA não paga o custo: a direção do próximo candle <em class="mau">se comportou como ruído</em></h1>
+  <div class="corpo l-tres-cartoes">
+<div class="cartao">
+  <p class="rotulo">Previsão</p>
+  <h3>Nenhum modelo erra menos que prever zero</h3>
+  <div><div class="big">0,016%<small>desvio da previsão</small></div><p class="nota">contra 0,288% do retorno real</p></div>
+  <ul><li>φ ≈ −θ: as partes AR e MA se anulam, e a previsão fica colada em zero.</li>
+    <li>Nas 2 combinações com Theil U abaixo de 1, o erro cai no máximo 0,005%.</li></ul>
+</div>
+<div class="cartao">
+  <p class="rotulo">Operação</p>
+  <h3>Nenhuma combinação dá lucro</h3>
+  <div><div class="big" style="--c: var(--bad)">−41<small>pts por operação no teste</small></div>
+    <p class="nota">± 42 · percentil 19 entre 2.000 sorteios aleatórios</p></div>
+  <ul><li>Operando todo candle, as 40 combinações perdem de 1,4 a 18,7 pts por operação.</li>
+    <li>A ARIMAX escolhida tinha +10 ± 19 na validação: vantagem menor que o erro.</li></ul>
+</div>
+<div class="cartao">
+  <p class="rotulo">Causa</p>
+  <h3>O retorno não tem memória que pague o custo</h3>
+  <div><div class="big">0,014<small>maior ρ₁ medido</small></div><p class="nota">o custo de 5 pts exigiria de 0,014 (60 min) a 0,107 (1 min)</p></div>
+  <ul><li>De 1 a 120 min, toda autocorrelação fica dentro da faixa de ruído.</li>
+    <li>Sem memória, o melhor que o ARIMA consegue é prever zero.</li></ul>
+</div>
+<p class="destaque largo">A memória linear que o ARIMA explora é pequena demais para o custo de operar. Um ganho na direção teria de vir de outra fonte de sinal.</p></div>
+  <div class="foot"><span>Validação 2024 · teste 01/2025 → 03/2026 · custo de 5 pts por operação</span><span>8 / 8</span></div>
+</section>
+</div>
+<div id="nav" role="navigation" aria-label="Navegação dos slides"><button id="ant" type="button" aria-label="Slide anterior">‹</button><span id="contador" aria-live="polite">1 / 8</span><button id="prox" type="button" aria-label="Próximo slide">›</button><button id="todos" type="button" title="Ver todos os slides (T)">todos</button></div>
+<script>
+(() => {
+  const slides = [...document.querySelectorAll(".slide")];
+  const contador = document.getElementById("contador");
+  let atual = 0;
+  const escala = () => {
+    document.documentElement.style.setProperty("--escala", Math.min(innerWidth / 1280, innerHeight / 720));
+    document.documentElement.style.setProperty("--escala-todos", Math.min(1, (innerWidth - 32) / 1280));
+  };
+  const mostrar = (n, gravar = true) => {
+    atual = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, i) => s.classList.toggle("ativo", i === atual));
+    contador.textContent = `${atual + 1} / ${slides.length}`;
+    if (gravar && !document.body.classList.contains("todos")) history.replaceState(null, "", `#${atual + 1}`);
+  };
+  const alternarTodos = (ligar) => {
+    const ligado = document.body.classList.toggle("todos", ligar);
+    document.getElementById("todos").textContent = ligado ? "apresentar" : "todos";
+    history.replaceState(null, "", ligado ? "#todos" : `#${atual + 1}`);
+    if (!ligado) mostrar(atual);
+  };
+  document.getElementById("ant").addEventListener("click", () => mostrar(atual - 1));
+  document.getElementById("prox").addEventListener("click", () => mostrar(atual + 1));
+  document.getElementById("todos").addEventListener("click", () => alternarTodos());
+  slides.forEach((s, i) => s.addEventListener("click", () => { if (document.body.classList.contains("todos")) { alternarTodos(false); mostrar(i); scrollTo(0, 0); } }));
+  addEventListener("keydown", (e) => {
+    if (e.target.closest && e.target.closest("button") && (e.key === " " || e.key === "Enter")) return;
+    if (["ArrowRight", "PageDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); mostrar(atual + 1); }
+    else if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); mostrar(atual - 1); }
+    else if (e.key === "Home") mostrar(0);
+    else if (e.key === "End") mostrar(slides.length - 1);
+    else if (e.key === "t" || e.key === "T") alternarTodos();
+  });
+  let x0 = null;
+  addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  addEventListener("touchend", (e) => {
+    if (x0 === null || document.body.classList.contains("todos")) return;
+    const dx = e.changedTouches[0].clientX - x0; x0 = null;
+    if (Math.abs(dx) > 40) mostrar(atual + (dx < 0 ? 1 : -1));
+  });
+  addEventListener("resize", escala);
+  escala();
+  const h = location.hash.slice(1);
+  if (h === "todos") { mostrar(0, false); alternarTodos(true); }
+  else mostrar((parseInt(h, 10) || 1) - 1, false);
+})();
+</script>
+</body>
+</html>

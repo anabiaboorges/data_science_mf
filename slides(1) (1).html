@@ -1,0 +1,1014 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Previsão T+1 do WIN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f7f5f0;
+    --panel: #eeebe4;
+    --panel-2: #e6e1d6;
+    --ink: #1b2128;
+    --ink-2: #3d4753;
+    --muted: #6e7884;
+    --rule: #d8d3c8;
+    --arima: #4d6996;
+    --ml: #b8720b;
+    --nn: #23877a;
+    --good: #23877a;
+    --bad: #c0452a;
+    --cost: #c0452a;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: #dad6ce; color: var(--ink); font-family: var(--sans); }
+  body { overflow: hidden; }
+
+  /* ---------- palco 1280×720 escalado ---------- */
+  #deck { position: fixed; inset: 0; display: grid; place-items: center; }
+  .slide {
+    position: absolute; width: 1280px; height: 720px;
+    background: var(--bg);
+    transform-origin: center center;
+    display: none;
+    padding: 64px 80px 56px 112px;
+    overflow: hidden;
+  }
+  .slide.active { display: block; }
+
+  /* trilho lateral com a parte da apresentação */
+  .rail {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 64px;
+    border-right: 1px solid var(--rule);
+    display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+    padding: 40px 0 32px;
+  }
+  .rail .num { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--c, var(--ink)); }
+  .rail .lbl {
+    writing-mode: vertical-rl; transform: rotate(180deg);
+    font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--muted);
+  }
+  .rail .bar { width: 3px; flex: 1; margin: 18px 0; background: var(--c, var(--rule)); opacity: .9; }
+
+  .kicker {
+    font-family: var(--mono); font-size: 13px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--c, var(--muted)); margin-bottom: 14px;
+  }
+  h1 { font-size: 40px; line-height: 1.12; font-weight: 600; letter-spacing: -.01em; max-width: 1040px; }
+  h1 em { font-style: normal; color: var(--c, var(--ml)); }
+  .lead { margin-top: 14px; font-size: 19px; line-height: 1.45; color: var(--ink-2); max-width: 980px; font-weight: 300; }
+
+  .foot {
+    position: absolute; left: 112px; right: 80px; bottom: 26px;
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: .06em;
+  }
+
+  .body { position: absolute; left: 112px; right: 80px; top: 214px; bottom: 70px; }
+  .body.tall { top: 176px; }
+
+  /* blocos */
+  .cols { display: grid; gap: 28px; height: 100%; }
+  .c2 { grid-template-columns: 1fr 1fr; }
+  .c3 { grid-template-columns: repeat(3, 1fr); }
+  .c64 { grid-template-columns: 1.5fr 1fr; }
+  .c46 { grid-template-columns: 1fr 1.5fr; }
+
+  .block { border-top: 2px solid var(--c, var(--rule)); padding-top: 16px; }
+  .block h3 { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
+  .block p, .block li { font-size: 15.5px; line-height: 1.5; color: var(--ink-2); }
+  .block ul { list-style: none; }
+  .block li { padding-left: 16px; position: relative; margin-bottom: 7px; }
+  .block li::before { content: ""; position: absolute; left: 0; top: 10px; width: 7px; height: 2px; background: var(--c, var(--muted)); }
+  .tag {
+    display: inline-block; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    padding: 3px 8px; border: 1px solid currentColor; margin-bottom: 10px;
+  }
+  .t-done { color: var(--good); } .t-run { color: var(--ml); } .t-todo { color: var(--muted); }
+
+  .mono { font-family: var(--mono); }
+  .muted { color: var(--muted); }
+  .note { font-size: 14px; color: var(--muted); line-height: 1.45; }
+  .callout {
+    border-left: 3px solid var(--c, var(--ml)); background: var(--panel); padding: 14px 18px;
+    font-size: 16px; line-height: 1.45; color: var(--ink);
+  }
+  .big { font-family: var(--mono); font-size: 54px; font-weight: 500; line-height: 1; color: var(--c, var(--ink)); }
+  .big small { font-size: 18px; color: var(--muted); margin-left: 6px; }
+
+  /* tabelas */
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th { font-family: var(--mono); font-weight: 500; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--ink-2); }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--rule); color: var(--ink-2); }
+  td.n, th.n { text-align: right; font-family: var(--mono); }
+  tr.hl td { background: var(--panel-2); color: var(--ink); }
+  tr.hl td:first-child { box-shadow: inset 3px 0 0 var(--c, var(--ml)); }
+  .pos { color: var(--good); } .neg { color: var(--bad); }
+  .nw td, .nw th { white-space: nowrap; }
+  tr.hl td.pos { color: var(--good); } tr.hl td.neg { color: var(--bad); }
+
+  /* linha do tempo */
+  .tl { position: relative; height: 150px; margin-top: 10px; }
+  .tl .seg { position: absolute; top: 44px; height: 46px; display: flex; align-items: center; padding-left: 12px; font-size: 14px; font-weight: 600; color: #10151b; }
+  .tl .gap { position: absolute; top: 44px; height: 46px; background: repeating-linear-gradient(135deg, #f7f5f0 0 5px, #cfc9bd 5px 9px); }
+  .tl .yr { position: absolute; top: 14px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .tl .yr::after { content: ""; position: absolute; left: 0; top: 18px; height: 82px; border-left: 1px dashed var(--rule); }
+  .tl .cap { position: absolute; top: 102px; font-size: 13px; color: var(--ink-2); line-height: 1.4; }
+
+  /* barras horizontais */
+  .hbars { display: grid; gap: 12px; }
+  .hrow { display: grid; grid-template-columns: 70px 1fr 120px; align-items: center; gap: 12px; font-size: 14px; }
+  .hrow .lab { font-family: var(--mono); color: var(--ink-2); }
+  .track { position: relative; height: 26px; background: var(--panel); }
+  .track .fill { position: absolute; top: 0; bottom: 0; }
+  .track .mk { position: absolute; top: -4px; bottom: -4px; width: 3px; }
+  .hrow .val { font-family: var(--mono); font-size: 13px; color: var(--ink-2); text-align: right; }
+
+  /* funil */
+  .funnel { display: grid; gap: 12px; align-content: start; }
+  .fstep { display: grid; grid-template-columns: 1fr; }
+  .fbar { height: 54px; background: var(--panel-2); border-left: 3px solid var(--ml); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+  .fbar b { font-family: var(--mono); font-size: 26px; font-weight: 500; color: var(--ml); }
+  .fbar span { font-size: 14.5px; color: var(--ink-2); }
+
+  /* passos do roteiro */
+  .steps { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; border-top: 1px solid var(--rule); }
+  .step { padding: 18px 14px 18px 0; border-right: 1px solid var(--rule); margin-right: 14px; }
+  .step:last-child { border-right: 0; }
+  .step .sn { font-family: var(--mono); font-size: 34px; font-weight: 500; color: var(--muted); }
+  .step.done .sn { color: var(--good); } .step.run .sn { color: var(--ml); }
+  .step h4 { font-size: 16.5px; font-weight: 600; margin: 6px 0 6px; }
+  .step p { font-size: 13.5px; color: var(--ink-2); line-height: 1.45; }
+
+  /* capa */
+  .cover { padding: 0; }
+  .cover .inner { position: absolute; left: 112px; right: 80px; top: 150px; }
+  .cover h1 { font-size: 58px; line-height: 1.05; max-width: 1000px; }
+  .cover .fronts { position: absolute; left: 112px; right: 80px; bottom: 96px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+  .cover .fronts div { border-top: 3px solid; padding-top: 12px; font-size: 15px; color: var(--ink-2); }
+  .cover .fronts b { display: block; font-size: 19px; color: var(--ink); margin-bottom: 2px; font-weight: 600; }
+
+  /* navegação */
+  #nav { position: fixed; right: 18px; top: 14px; opacity: .35; transition: opacity .2s; display: flex; gap: 8px; align-items: center; font-family: var(--mono); font-size: 12px; color: var(--muted); z-index: 10; }
+  #nav:hover { opacity: 1; }
+  #nav button { background: #eeebe4; color: var(--ink); border: 1px solid var(--rule); width: 30px; height: 30px; cursor: pointer; font-family: var(--mono); }
+  #nav button:hover { border-color: var(--ink-2); }
+
+  /* painel do modelo no momento da escolha */
+  .mstat { background: var(--panel); border-left: 3px solid var(--ml); padding: 12px 16px 12px; align-self: start; }
+  .mstat-h { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ml); margin-bottom: 8px; }
+  .mstat-g { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; }
+  .mstat-g span { display: block; font-size: 12px; color: var(--muted); }
+  .mstat-g b { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--ink); }
+  .mstat-g b i { font-style: normal; font-size: 13px; color: var(--muted); }
+  .mstat-g b.neg { color: var(--bad); }
+  .mstat-n { font-size: 12.5px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
+  .choice { font-size: 15px; line-height: 1.45; color: var(--ink); }
+  .choice b { color: var(--ml); }
+
+  /* ---------- slides da frente estatística (portados de reabordagem_estatistico.html) ---------- */
+  .est { --barra: #d8d3c8; --arima-escuro: #d6deeb; --cost-escuro: #f1d9d0; }
+  .slide.est.active { display: flex; flex-direction: column; padding: 54px 80px 64px 112px; }
+  .est h1 { font-size: 36px; line-height: 1.14; max-width: 1060px; }
+  .est h1 em { color: var(--c, var(--arima)); }
+  .est h1 em.mau { color: var(--bad); }
+  .est h1.longo { font-size: 32px; }
+  .est h3 { font-size: 18px; font-weight: 600; line-height: 1.25; color: var(--ink); }
+  .est p, .est li { font-size: 15.5px; line-height: 1.5; color: var(--ink-2); }
+  .est strong, .est b { color: var(--ink); font-weight: 600; }
+  .est sub { font-size: .7em; }
+  .est .corpo { flex: 1; min-height: 0; display: grid; gap: 28px; margin-top: 24px; align-items: start; align-content: start; }
+  .est .l-texto-fig { grid-template-columns: 380px 1fr; }
+  .est .l-fig-texto { grid-template-columns: 1fr 360px; }
+  .est .l-tabela-texto { grid-template-columns: 1fr 290px; }
+  .est .l-duas, .est .l-meio { grid-template-columns: 1fr 1fr; }
+  .est .l-cheia { grid-template-columns: 1fr; gap: 16px; }
+  .est .l-cheia .pilha { gap: 12px; }
+  .est .l-cheia .tres > div { padding-top: 10px; }
+  .est .l-cheia .tres p { font-size: 14px; line-height: 1.42; }
+  .est .l-tres-cartoes { grid-template-columns: repeat(3, 1fr); gap: 28px; align-items: stretch; }
+  .est .texto, .est .pilha { display: flex; flex-direction: column; gap: 14px; }
+  .est .texto ul, .est .pilha ul, .est .cartao ul, .est .tres ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .est .texto li, .est .cartao li, .est .tres li { padding-left: 16px; position: relative; }
+  .est .texto li::before, .est .cartao li::before, .est .tres li::before { content: ""; position: absolute; left: 0; top: 11px; width: 7px; height: 2px; background: var(--c, var(--muted)); }
+  .est .tres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .est .tres > div { display: flex; flex-direction: column; gap: 8px; border-top: 2px solid var(--c, var(--rule)); padding-top: 14px; }
+  .est .cartao { display: flex; flex-direction: column; gap: 10px; border-top: 2px solid var(--c, var(--rule)); padding-top: 16px; }
+  .est .cartao h3 { font-size: 20px; min-height: 2.5em; }
+  .est .big { font-family: var(--mono); font-size: 46px; font-weight: 500; line-height: 1; color: var(--c, var(--ink)); margin-top: 4px; }
+  .est .big small { font-size: 14px; color: var(--muted); margin-left: 8px; letter-spacing: 0; }
+  .est .cartao .nota { margin-top: 6px; }
+  .est .rotulo { align-self: flex-start; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border: 1px solid currentColor; color: var(--c, var(--muted)); }
+  .est .fig { display: flex; flex-direction: column; gap: 8px; }
+  .est .fig svg { display: block; width: 100%; height: auto; }
+  .est .fig figcaption, .est .nota { font-size: 13px; line-height: 1.45; color: var(--muted); }
+  .est .legenda { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--mono); font-size: 12px; line-height: 1.3; color: var(--muted); }
+  .est .legenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .est .legenda svg { width: 22px; height: 12px; }
+  .est .destaque { border-left: 3px solid var(--c, var(--ml)); background: var(--panel); padding: 14px 18px; font-size: 16px; line-height: 1.45; color: var(--ink); }
+  .est .destaque.largo { grid-column: 1 / -1; font-size: 18px; }
+  .est .formula { font: 500 22px var(--mono); color: var(--ink); letter-spacing: -.01em; white-space: nowrap; }
+  .est .tab { width: 100%; border-collapse: collapse; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .est .tab caption { text-align: left; font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-bottom: 8px; }
+  .est .tab th { font-family: var(--mono); font-weight: 500; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--ink-2); vertical-align: bottom; }
+  .est .tab th[scope="row"] { font: 600 14.5px/1.4 var(--sans); letter-spacing: 0; text-transform: none; color: var(--ink); border-bottom: 1px solid var(--rule); vertical-align: top; white-space: nowrap; }
+  .est .tab td { font-size: 14.5px; line-height: 1.4; padding: 8px 10px; border-bottom: 1px solid var(--rule); color: var(--ink-2); vertical-align: top; }
+  .est .tab .num { text-align: right; font-family: var(--mono); white-space: nowrap; }
+  .est .tab.comparacao td { padding: 5px 10px; font-size: 14px; }
+  .est .tab.comparacao th.num { white-space: normal; }
+  .est .tab tr.grupo td { font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 12px 10px 5px; }
+  .est .tab tr.escolhida td { background: var(--panel-2); color: var(--ink); }
+  .est .tab tr.escolhida td:first-child { box-shadow: inset 3px 0 0 var(--c, var(--ml)); }
+  .est .sv-grade { stroke: var(--rule); stroke-width: 1; fill: none; }
+  .est .sv-zero { stroke: var(--muted); stroke-width: 1; fill: none; }
+  .est .sv-tick { font: 400 11.5px var(--mono); fill: var(--muted); }
+  .est .sv-rot { font: 600 13.5px var(--sans); fill: var(--ink); }
+  .est .sv-rot2 { font: 400 13px var(--sans); fill: var(--ink-2); }
+  .est .sv-val { font: 500 12px var(--mono); fill: var(--ink); }
+  .est .sv-dentro { font: 600 12px var(--sans); fill: var(--ink); }
+  .est .f-azul { fill: var(--arima); } .est .f-azul-claro { fill: var(--arima-escuro); }
+  .est .f-laranja { fill: var(--cost); } .est .f-laranja-claro { fill: var(--cost-escuro); }
+  .est .f-cinza { fill: var(--muted); } .est .f-cinza-claro { fill: var(--barra); } .est .f-papel { fill: var(--panel); }
+  .est .f-folha { fill: var(--bg); } .est .f-tinta { fill: var(--ink-2); }
+  .est .s-azul { stroke: var(--arima); stroke-width: 2; fill: none; }
+  .est .s-laranja { stroke: var(--cost); stroke-width: 1.6; fill: none; }
+  .est .s-cinza { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+  .est .s-tinta { stroke: var(--ink-2); stroke-width: 1.3; fill: none; }
+  .est .s-hachura { stroke: #d8d3c8; stroke-width: 3; }
+  .est .borda { stroke: var(--muted); stroke-width: 1.3; }
+  .est .grosso { stroke-width: 2.6; } .est .fino { stroke-width: 1.3; }
+  .est .tracejado { stroke-dasharray: 6 4; } .est .pontilhado { stroke-dasharray: 2 3; }
+  .est .t-azul { fill: var(--arima); } .est .t-laranja { fill: var(--cost); } .est .t-folha { fill: var(--bg); }
+
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    html, body { overflow: visible; height: auto; background: var(--bg); }
+    #deck { position: static; display: block; }
+    #nav { display: none; }
+    .slide { display: block !important; position: relative; transform: none !important; page-break-after: always; break-after: page; }
+  }
+</style>
+</head>
+<body>
+<div id="deck">
+
+<!-- ======================= CAPA ======================= -->
+<section class="slide cover" data-title="Capa">
+  <div class="rail" style="--c: var(--ml)"><span class="num">T+1</span><span class="bar"></span><span class="lbl">Checkpoint</span></div>
+  <div class="inner">
+    <div class="kicker">Data Science para Mercado Financeiro · UFG</div>
+    <h1>Comparativo de modelos preditivos para o retorno do candle <em style="color:var(--ml)">T+1</em></h1>
+    <p class="lead">Minicontrato futuro de Ibovespa (WIN) · candles intradiários · 10/2020 → 03/2026</p>
+  </div>
+  <div class="fronts">
+    <div style="border-color: var(--arima)"><b>Estatístico</b>família ARIMA</div>
+    <div style="border-color: var(--ml); margin: 0 24px"><b>Machine learning</b>Random Forest</div>
+    <div style="border-color: var(--nn)"><b>Redes neurais</b>MLP, GRU e LSTM</div>
+  </div>
+  <div class="foot"><span>Integrantes do grupo</span><span>Novembro de 2026</span></div>
+</section>
+
+<!-- ======================= I. OBJETIVO ======================= -->
+<section class="slide" data-title="Objetivo">
+  <div class="rail"><span class="num">I</span><span class="bar"></span><span class="lbl">Objetivo</span></div>
+  <div class="kicker">I · Objetivo</div>
+  <h1>Prever o retorno do próximo candle do WIN e medir se a previsão <em>paga o custo</em> de operar</h1>
+  <p class="lead">Três frentes atacam o mesmo alvo, com os mesmos dados e a mesma régua. Se uma for melhor, a diferença vem do modelo.</p>
+  <div class="body" style="top: 300px">
+    <div class="cols c3">
+      <div class="block" style="--c: var(--arima)">
+        <span class="tag t-done">concluída</span>
+        <h3>Estatística · ARIMA</h3>
+        <ul>
+          <li>Usa o último retorno e o último erro de previsão</li>
+          <li>Variantes com o dólar (WDO) e com o mesmo horário do dia anterior</li>
+          <li>Referência linear: o que a memória simples consegue</li>
+        </ul>
+      </div>
+      <div class="block" style="--c: var(--ml)">
+        <span class="tag t-run">em andamento · foco</span>
+        <h3>Machine learning · Random Forest</h3>
+        <ul>
+          <li>Conjunto de árvores de decisão</li>
+          <li>Capta relações não lineares e condicionais entre ~20 variáveis</li>
+          <li>Plano em 6 passos, um grupo de decisões por vez</li>
+        </ul>
+      </div>
+      <div class="block" style="--c: var(--nn)">
+        <span class="tag t-run">melhor caso avaliado</span>
+        <h3>Redes neurais · MLP, GRU, LSTM</h3>
+        <ul>
+          <li>MLP com variáveis do candle; GRU e LSTM leem os últimos 10 retornos</li>
+          <li>Melhor configuração: MLP, candle de 60 min, janela de 1 mês</li>
+          <li>Mesmo alvo, protocolo e custo das outras frentes</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= II. DIVISÃO DO TEMPO ======================= -->
+<section class="slide" data-title="Divisão dos dados">
+  <div class="rail"><span class="num">II</span><span class="bar"></span><span class="lbl">Protocolo</span></div>
+  <div class="kicker">II · Protocolo comum · tempo</div>
+  <h1>As três frentes escolhem tudo até 2024 e são <em>validadas uma única vez</em> em 2025–26</h1>
+  <div class="body tall" style="top: 190px">
+    <div class="tl">
+      <!-- escala: 10/2020 = 0 ; 04/2026 = 100% ; 66 meses -->
+      <span class="yr" style="left:0%">2020</span>
+      <span class="yr" style="left:3.8%">2021</span>
+      <span class="yr" style="left:22%">2022</span>
+      <span class="yr" style="left:40.2%">2023</span>
+      <span class="yr" style="left:58.3%">2024</span>
+      <span class="yr" style="left:76.5%">2025</span>
+      <span class="yr" style="left:94.7%">2026</span>
+
+      <div class="seg" style="left:0; width:58.3%; background: #8fa0b3;">Exploração · análise de dados</div>
+      <div class="gap" style="left:48.5%; width:6.8%"></div>
+      <div class="seg" style="left:58.3%; width:18.2%; background: var(--ml);">Seleção</div>
+      <div class="seg" style="left:76.5%; width:23.5%; background: var(--nn);">Validação final</div>
+
+      <div class="cap" style="left:0; width:44%">15/10/2020 → 31/12/2023<br><span class="muted">estudar os dados, sem modelo · buraco na base em jun–out/2023</span></div>
+      <div class="cap" style="left:58.3%; width:18%">2024<br><span class="muted">escolhas, re-treino a cada trimestre</span></div>
+      <div class="cap" style="left:76.5%; width:23.5%">01/2025 → 03/2026<br><span class="muted">modelo congelado, rodado uma vez</span></div>
+    </div>
+
+    <div class="cols c3" style="height:auto; margin-top: 46px">
+      <div class="block"><h3>Treino</h3><p>Janela móvel que termina no início de cada trimestre avaliado. O tamanho (3 a 24 meses) é escolhido na seleção.</p></div>
+      <div class="block"><h3>Teste (seleção)</h3><p>Cada trimestre de 2024 é previsto por um modelo que nunca o viu. As quatro previsões formam o ano.</p></div>
+      <div class="block" style="--c: var(--nn)"><h3>Validação</h3><p>15 meses que nenhuma escolha usou. Cada frente roda aqui uma vez, com tudo congelado por escrito.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= II. CUSTO ======================= -->
+<section class="slide" data-title="Custo">
+  <div class="rail"><span class="num">II</span><span class="bar"></span><span class="lbl">Protocolo</span></div>
+  <div class="kicker">II · Protocolo comum · custo</div>
+  <h1>Cada operação completa custa <em>5 pontos</em>: taxas da B3 mais meio spread</h1>
+  <div class="body">
+    <div class="cols c64">
+      <div>
+        <div class="hbars" style="gap:18px; margin-top: 6px">
+          <div class="hrow" style="grid-template-columns: 130px 1fr 80px">
+            <span class="lab">otimista</span>
+            <div class="track"><div class="fill" style="left:0; width:16.7%; background:#8fa0b3"></div></div>
+            <span class="val">2,5 pts</span>
+          </div>
+          <div class="hrow" style="grid-template-columns: 130px 1fr 80px">
+            <span class="lab" style="color:var(--ink)">adotado</span>
+            <div class="track"><div class="fill" style="left:0; width:16.7%; background:#8fa0b3"></div><div class="fill" style="left:16.7%; width:16.7%; background:var(--ml)"></div></div>
+            <span class="val" style="color:var(--ml)">5 pts</span>
+          </div>
+          <div class="hrow" style="grid-template-columns: 130px 1fr 80px">
+            <span class="lab">base</span>
+            <div class="track"><div class="fill" style="left:0; width:16.7%; background:#8fa0b3"></div><div class="fill" style="left:16.7%; width:33.3%; background:#b5793a"></div></div>
+            <span class="val">7,5 pts</span>
+          </div>
+          <div class="hrow" style="grid-template-columns: 130px 1fr 80px">
+            <span class="lab">conservador</span>
+            <div class="track"><div class="fill" style="left:0; width:16.7%; background:#8fa0b3"></div><div class="fill" style="left:16.7%; width:33.3%; background:#b5793a"></div><div class="fill" style="left:50%; width:33.3%; background:#7a3b30"></div></div>
+            <span class="val">12,5 pts</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:22px; margin-top:18px; font-size:13px; color:var(--muted)">
+          <span><i style="display:inline-block;width:12px;height:12px;background:#8fa0b3;vertical-align:-1px;margin-right:6px"></i>taxas B3 day trade</span>
+          <span><i style="display:inline-block;width:12px;height:12px;background:var(--ml);vertical-align:-1px;margin-right:6px"></i>meio spread</span>
+          <span><i style="display:inline-block;width:12px;height:12px;background:#b5793a;vertical-align:-1px;margin-right:6px"></i>spread inteiro</span>
+          <span><i style="display:inline-block;width:12px;height:12px;background:#7a3b30;vertical-align:-1px;margin-right:6px"></i>slippage</span>
+        </div>
+        <table style="margin-top: 26px">
+          <tr><th>Componente</th><th class="n">Pts</th><th>Por quê</th></tr>
+          <tr><td>Taxas B3, day trade</td><td class="n">2,5</td><td>≈ R$ 0,50 por operação completa</td></tr>
+          <tr><td>Corretagem</td><td class="n">0</td><td>zero para minicontratos na maioria das corretoras</td></tr>
+          <tr><td>Meio spread</td><td class="n">2,5</td><td>uma ponta a mercado (meio tick), a outra com ordem limitada</td></tr>
+        </table>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:22px">
+        <div class="block" style="--c: var(--ml)">
+          <h3>Por que 5 e não 2,5</h3>
+          <p>Uma das pontas quase sempre precisa entrar a mercado. Usar só as taxas deixaria todas as frentes otimistas demais.</p>
+        </div>
+        <div class="block">
+          <h3>Por que não um número só</h3>
+          <p>No relatório final, cada frente aparece nos três cenários e com o <b>custo de equilíbrio</b>: o maior custo que ela aguenta sem perder dinheiro.</p>
+        </div>
+        <p class="note">1 ponto = R$ 0,20 por minicontrato. Imposto (20% do lucro mensal) não entra como custo por operação.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= II. CRITÉRIO ======================= -->
+<section class="slide" data-title="Critério">
+  <div class="rail"><span class="num">II</span><span class="bar"></span><span class="lbl">Protocolo</span></div>
+  <div class="kicker">II · Protocolo comum · critério</div>
+  <h1>Vence a frente com o maior <em>retorno financeiro no período de validação</em>, depois do custo</h1>
+  <div class="body">
+    <div class="cols c46">
+      <div style="display:flex; flex-direction:column; gap:20px">
+        <div class="callout" style="font-size:17px">Acertar a direção não basta: o ganho médio precisa pagar as perdas e o custo. Por isso a régua final é dinheiro, e não acerto.</div>
+        <div class="block">
+          <h3>Durante a seleção (2024)</h3>
+          <p>Métricas de previsão guiam as escolhas: correlação entre previsto e realizado, sua estabilidade mês a mês e o erro comparado ao de prever retorno zero.</p>
+        </div>
+      </div>
+      <div>
+        <table>
+          <tr><th>No período de validação, cada frente reporta</th><th>Leitura</th></tr>
+          <tr class="hl" style="--c: var(--ml)"><td><b>Resultado acumulado</b> em pontos e em R$</td><td>critério de comparação</td></tr>
+          <tr><td>Ganho médio por operação ± erro-padrão</td><td>o resultado é distinguível de zero?</td></tr>
+          <tr><td>Número de operações</td><td>tamanho da amostra</td></tr>
+          <tr><td>Custo de equilíbrio</td><td>folga frente aos cenários de custo</td></tr>
+          <tr><td>Posição contra 2.000 sorteios aleatórios nos mesmos candles</td><td>o sinal vale mais que sorte?</td></tr>
+          <tr><td>Erro contra a previsão de retorno zero</td><td>a previsão em si tem valor?</td></tr>
+        </table>
+        <p class="note" style="margin-top:14px">O sorteio aleatório usa os mesmos candles e a mesma regra de entrada e saída do modelo: só a direção muda.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= III. ARIMA (frente estatística) ======================= -->
+<section class="slide est" data-title="ARIMA · o modelo" style="--c: var(--arima)">
+  <div class="rail"><span class="num">III</span><span class="bar"></span><span class="lbl">ARIMA</span></div>
+  <div class="kicker">III · Frente estatística · modelos ARIMA · o modelo</div>
+  <h1>O modelo: a previsão da próxima hora combina o <em>último retorno</em> e o <em>último erro</em></h1>
+  <div class="corpo l-texto-fig">
+<div class="texto">
+  <div class="formula">r̂<sub>t+1</sub> = φ · r<sub>t</sub> + θ · e<sub>t</sub></div>
+  <ul>
+    <li><strong>r<sub>t</sub></strong>: o retorno do candle que acabou de fechar. <strong>e<sub>t</sub></strong>: o erro da última previsão, a surpresa.</li>
+    <li><strong>φ</strong> (parte AR): a fração do último retorno que continua. φ &gt; 0 é momentum; φ &lt; 0 é reversão.</li>
+    <li><strong>θ</strong> (parte MA): a correção pela última surpresa.</li>
+    <li>Se o retorno não tem memória, φ e θ ficam perto de zero, ou se anulam, e a previsão vira zero: o naive.</li>
+  </ul>
+</div>
+<div>
+  <table class="tab">
+    <caption>Como foi ajustado</caption>
+    <tr><th scope="row">Modelo</th><td>ARIMA(1,0,1) no log-retorno, sem constante; é o mesmo que ARIMA(1,1,1) no log-preço</td></tr>
+    <tr><th scope="row">Estimação</th><td>máxima verossimilhança (statsmodels): φ, θ e a variância do erro que tornam os dados observados mais prováveis</td></tr>
+    <tr><th scope="row">Candle</th><td>60 min, escolhido entre 1, 15 e 60 min</td></tr>
+    <tr><th scope="row">Janela de treino</th><td>últimos 6 meses, escolhida entre 1, 3, 6 e 12</td></tr>
+    <tr><th scope="row">Re-estimação</th><td>a cada trimestre; dentro dele, parâmetros fixos e previsão atualizada a cada candle, só com dados até t</td></tr>
+    <tr><th scope="row">Variantes</th><td>ARIMAX: + retorno do dólar (WDO) no candle atual · SARIMA: + o mesmo horário do pregão anterior · SARIMAX: as duas</td></tr>
+    <tr><th scope="row">Escolhas e teste</th><td>escolhas na validação de 2024; teste de 01/2025 a 03/2026, rodado uma vez</td></tr>
+  </table>
+</div></div>
+  <div class="foot"><span>Família ARIMA · candles de 60 min do WIN</span><span class="pg"></span></div>
+</section>
+
+<section class="slide est" data-title="ARIMA · comparação dos modelos" style="--c: var(--arima)">
+  <div class="rail"><span class="num">III</span><span class="bar"></span><span class="lbl">ARIMA</span></div>
+  <div class="kicker">III · Frente estatística · modelos ARIMA · comparação dos modelos</div>
+  <h1>Nenhum modelo da família ARIMA <em class="mau">erra menos que prever retorno zero</em></h1>
+  <div class="corpo l-tabela-texto">
+<div class="pilha">
+  <table class="tab comparacao"><thead><tr><th>Modelo</th><th class="num">Theil U</th><th class="num">Correlação com o real</th><th class="num">Acerto da direção</th><th class="num">Esperança (pts/op)</th></tr></thead><tbody><tr class="grupo"><td colspan="5">Validação 2024 · 60 min × 6 meses · melhor regra de cada um</td></tr><tr><td>ARIMA</td><td class="num">1,0016</td><td class="num">−0,012</td><td class="num">50,2%</td><td class="num">+1,4 ± 18</td></tr><tr class="escolhida"><td>ARIMAX · + dólar (escolhida)</td><td class="num">1,0043</td><td class="num">−0,016</td><td class="num">48,5%</td><td class="num">+10,2 ± 19</td></tr><tr><td>SARIMA · s = 9</td><td class="num">1,0018</td><td class="num">−0,007</td><td class="num">50,8%</td><td class="num">−0,7 ± 6</td></tr><tr><td>SARIMAX · s = 9</td><td class="num">1,0044</td><td class="num">−0,012</td><td class="num">49,5%</td><td class="num">+3,8 ± 13</td></tr><tr class="grupo"><td colspan="5">Validação 2024 · ARIMA em 12 combinações de candle e janela · opera sempre</td></tr><tr><td>ARIMA, 1 / 15 / 60 min × 1 / 3 / 6 / 12 m</td><td class="num">1,0000 a 1,0257</td><td class="num">−0,058 a +0,007</td><td class="num">47% a 52%</td><td class="num">−18,7 a −1,4</td></tr><tr class="grupo"><td colspan="5">Teste 01/2025 → 03/2026 · rodado uma vez</td></tr><tr class="escolhida"><td>ARIMAX · 214 operações</td><td class="num">1,0027</td><td class="num">−0,018</td><td class="num">49,2%</td><td class="num">−41,1 ± 42</td></tr></tbody></table>
+  <p class="nota">Theil U: erro do modelo ÷ erro de prever zero; abaixo de 1 seria melhor. Correlação entre a previsão e o retorno realizado. Esperança com custo de 5 pts, ± 1 erro-padrão; no primeiro bloco, com a melhor de 36 regras de operação de cada modelo. s: distância do termo sazonal em candles (9 = um pregão).</p>
+</div>
+<div class="texto"><ul><li>Theil U ≥ 1 em todas as linhas da tabela. O próximo slide mostra as 40 combinações de modelo, candle e janela.</li><li>A correlação da previsão com o retorno real fica entre −0,06 e +0,01: nenhuma habilidade de direção.</li><li>A ARIMAX foi escolhida pela maior esperança, +10 ± 19, entre 180 combinações de modelo e regra. A vantagem era menor que o erro. No teste, deu −41 ± 42.</li><li>O dólar reage junto com o índice (correlação de −0,47 no mesmo candle), e não antes (0,01 no candle seguinte).</li></ul></div></div>
+  <div class="foot"><span>Validação: 2024 · teste: 01/2025 → 03/2026 · custo de 5 pts por operação</span><span class="pg"></span></div>
+</section>
+
+<section class="slide est" data-title="ARIMA · grade candle × janela" style="--c: var(--arima)">
+  <div class="rail"><span class="num">III</span><span class="bar"></span><span class="lbl">ARIMA</span></div>
+  <div class="kicker">III · Frente estatística · modelos ARIMA · grade candle × janela</div>
+  <h1 class="longo">Nas 40 combinações de modelo, candle e janela, o erro fica no nível de prever zero ou acima, e a operação <em class="mau">sempre perde dinheiro</em></h1>
+  <div class="corpo l-cheia">
+<div class="pilha">
+<figure class="fig"><svg viewBox="0 0 1160 296" role="img" aria-label="Mapas de calor por tamanho de candle e janela de treino para ARIMA, ARIMAX, SARIMA e SARIMAX: Theil U e esperança por operação na validação de 2024"><defs><pattern id="hachura-grade" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="7" height="7" class="f-folha"/><line x1="0" y1="0" x2="0" y2="7" class="s-hachura"/></pattern></defs><text x="190.0" y="16.0" class="sv-rot" text-anchor="middle">ARIMA</text><text x="470.0" y="16.0" class="sv-rot" text-anchor="middle">ARIMAX</text><text x="750.0" y="16.0" class="sv-rot" text-anchor="middle">SARIMA</text><text x="1030.0" y="16.0" class="sv-rot" text-anchor="middle">SARIMAX</text><text x="0.0" y="32.0" class="sv-rot2" text-anchor="start">Theil U: erro do modelo ÷ erro de prever zero (1 = igual ao naive)</text><text x="62.0" y="61.0" class="sv-tick" text-anchor="end">1 min</text><text x="62.0" y="87.0" class="sv-tick" text-anchor="end">15 min</text><text x="62.0" y="113.0" class="sv-tick" text-anchor="end">60 min</text><g><title>ARIMA · 1 min × 1 m · Theil U: 1,00005</title><rect x="71" y="45" width="58" height="24" fill="#ECE5DD"/></g><text x="100.0" y="61.0" class="sv-val" text-anchor="middle">1,00005</text><g><title>ARIMA · 1 min × 3 m · Theil U: 1,00028</title><rect x="131" y="45" width="58" height="24" fill="#EADCD3"/></g><text x="160.0" y="61.0" class="sv-val" text-anchor="middle">1,00028</text><g><title>ARIMA · 1 min × 6 m · Theil U: 1,00024</title><rect x="191" y="45" width="58" height="24" fill="#EADDD4"/></g><text x="220.0" y="61.0" class="sv-val" text-anchor="middle">1,00024</text><g><title>ARIMA · 1 min × 12 m · Theil U: 1,00014</title><rect x="251" y="45" width="58" height="24" fill="#EBE0D8"/></g><text x="280.0" y="61.0" class="sv-val" text-anchor="middle">1,00014</text><g><title>ARIMA · 15 min × 1 m · Theil U: 1,00143</title><rect x="71" y="71" width="58" height="24" fill="#E5C9BE"/></g><text x="100.0" y="87.0" class="sv-val" text-anchor="middle">1,00143</text><g><title>ARIMA · 15 min × 3 m · Theil U: 1,00077</title><rect x="131" y="71" width="58" height="24" fill="#E7D2C8"/></g><text x="160.0" y="87.0" class="sv-val" text-anchor="middle">1,00077</text><g><title>ARIMA · 15 min × 6 m · Theil U: 1,00048</title><rect x="191" y="71" width="58" height="24" fill="#E9D7CE"/></g><text x="220.0" y="87.0" class="sv-val" text-anchor="middle">1,00048</text><g><title>ARIMA · 15 min × 12 m · Theil U: 1,00008</title><rect x="251" y="71" width="58" height="24" fill="#ECE3DB"/></g><text x="280.0" y="87.0" class="sv-val" text-anchor="middle">1,00008</text><g><title>ARIMA · 60 min × 1 m · Theil U: 1,02571</title><rect x="71" y="97" width="58" height="24" fill="#C65A42"/></g><text x="100.0" y="113.0" class="sv-val t-folha" text-anchor="middle">1,02571</text><g><title>ARIMA · 60 min × 3 m · Theil U: 1,00681</title><rect x="131" y="97" width="58" height="24" fill="#D9A091"/></g><text x="160.0" y="113.0" class="sv-val" text-anchor="middle">1,00681</text><g><title>ARIMA · 60 min × 6 m · Theil U: 1,00162</title><rect x="191" y="97" width="58" height="24" fill="#E4C7BB"/></g><text x="220.0" y="113.0" class="sv-val" text-anchor="middle">1,00162</text><g><title>ARIMA · 60 min × 12 m · Theil U: 1,00225</title><rect x="251" y="97" width="58" height="24" fill="#E2C0B4"/></g><text x="280.0" y="113.0" class="sv-val" text-anchor="middle">1,00225</text><rect x="192.0" y="98.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="100.0" y="138.0" class="sv-tick" text-anchor="middle">1 m</text><text x="160.0" y="138.0" class="sv-tick" text-anchor="middle">3 m</text><text x="220.0" y="138.0" class="sv-tick" text-anchor="middle">6 m</text><text x="280.0" y="138.0" class="sv-tick" text-anchor="middle">12 m</text><g><title>ARIMAX · 1 min × 1 m · Theil U: 0,99995</title><rect x="351" y="45" width="58" height="24" fill="#E8E6E1"/></g><text x="380.0" y="61.0" class="sv-val" text-anchor="middle">0,99995</text><g><title>ARIMAX · 1 min × 3 m · Theil U: 1,00073</title><rect x="411" y="45" width="58" height="24" fill="#E7D3C9"/></g><text x="440.0" y="61.0" class="sv-val" text-anchor="middle">1,00073</text><g><title>ARIMAX · 1 min × 6 m · Theil U: 1,00051</title><rect x="471" y="45" width="58" height="24" fill="#E8D7CD"/></g><text x="500.0" y="61.0" class="sv-val" text-anchor="middle">1,00051</text><g><title>ARIMAX · 1 min × 12 m · Theil U: 1,00046</title><rect x="531" y="45" width="58" height="24" fill="#E9D8CE"/></g><text x="560.0" y="61.0" class="sv-val" text-anchor="middle">1,00046</text><g><title>ARIMAX · 15 min × 1 m · Theil U: 1,00644</title><rect x="351" y="71" width="58" height="24" fill="#DAA393"/></g><text x="380.0" y="87.0" class="sv-val" text-anchor="middle">1,00644</text><g><title>ARIMAX · 15 min × 3 m · Theil U: 1,00189</title><rect x="411" y="71" width="58" height="24" fill="#E3C4B8"/></g><text x="440.0" y="87.0" class="sv-val" text-anchor="middle">1,00189</text><g><title>ARIMAX · 15 min × 6 m · Theil U: 1,00054</title><rect x="471" y="71" width="58" height="24" fill="#E8D6CD"/></g><text x="500.0" y="87.0" class="sv-val" text-anchor="middle">1,00054</text><g><title>ARIMAX · 15 min × 12 m · Theil U: 1,00097</title><rect x="531" y="71" width="58" height="24" fill="#E6CFC4"/></g><text x="560.0" y="87.0" class="sv-val" text-anchor="middle">1,00097</text><g><title>ARIMAX · 60 min × 1 m · Theil U: 1,02983</title><rect x="351" y="97" width="58" height="24" fill="#C34F35"/></g><text x="380.0" y="113.0" class="sv-val t-folha" text-anchor="middle">1,02983</text><g><title>ARIMAX · 60 min × 3 m · Theil U: 1,00954</title><rect x="411" y="97" width="58" height="24" fill="#D69381"/></g><text x="440.0" y="113.0" class="sv-val" text-anchor="middle">1,00954</text><g><title>ARIMAX · 60 min × 6 m · Theil U: 1,00429</title><rect x="471" y="97" width="58" height="24" fill="#DEB0A2"/></g><text x="500.0" y="113.0" class="sv-val" text-anchor="middle">1,00429</text><g><title>ARIMAX · 60 min × 12 m · Theil U: 1,00464</title><rect x="531" y="97" width="58" height="24" fill="#DDAE9F"/></g><text x="560.0" y="113.0" class="sv-val" text-anchor="middle">1,00464</text><rect x="472.0" y="98.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="380.0" y="138.0" class="sv-tick" text-anchor="middle">1 m</text><text x="440.0" y="138.0" class="sv-tick" text-anchor="middle">3 m</text><text x="500.0" y="138.0" class="sv-tick" text-anchor="middle">6 m</text><text x="560.0" y="138.0" class="sv-tick" text-anchor="middle">12 m</text><rect x="631" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="691" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="751" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="811" y="45" width="58" height="24" fill="url(#hachura-grade)"/><g><title>SARIMA · 15 min × 1 m · Theil U: 1,00218</title><rect x="631" y="71" width="58" height="24" fill="#E2C1B5"/></g><text x="660.0" y="87.0" class="sv-val" text-anchor="middle">1,00218</text><g><title>SARIMA · 15 min × 3 m · Theil U: 1,00068</title><rect x="691" y="71" width="58" height="24" fill="#E7D3CA"/></g><text x="720.0" y="87.0" class="sv-val" text-anchor="middle">1,00068</text><g><title>SARIMA · 15 min × 6 m · Theil U: 1,00040</title><rect x="751" y="71" width="58" height="24" fill="#E9D9D0"/></g><text x="780.0" y="87.0" class="sv-val" text-anchor="middle">1,00040</text><g><title>SARIMA · 15 min × 12 m · Theil U: 0,99996</title><rect x="811" y="71" width="58" height="24" fill="#E9E7E1"/></g><text x="840.0" y="87.0" class="sv-val" text-anchor="middle">0,99996</text><g><title>SARIMA · 60 min × 1 m · Theil U: 1,02805</title><rect x="631" y="97" width="58" height="24" fill="#C4543B"/></g><text x="660.0" y="113.0" class="sv-val t-folha" text-anchor="middle">1,02805</text><g><title>SARIMA · 60 min × 3 m · Theil U: 1,00728</title><rect x="691" y="97" width="58" height="24" fill="#D99E8E"/></g><text x="720.0" y="113.0" class="sv-val" text-anchor="middle">1,00728</text><g><title>SARIMA · 60 min × 6 m · Theil U: 1,00179</title><rect x="751" y="97" width="58" height="24" fill="#E3C5B9"/></g><text x="780.0" y="113.0" class="sv-val" text-anchor="middle">1,00179</text><g><title>SARIMA · 60 min × 12 m · Theil U: 1,00262</title><rect x="811" y="97" width="58" height="24" fill="#E1BDB0"/></g><text x="840.0" y="113.0" class="sv-val" text-anchor="middle">1,00262</text><rect x="752.0" y="98.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="660.0" y="138.0" class="sv-tick" text-anchor="middle">1 m</text><text x="720.0" y="138.0" class="sv-tick" text-anchor="middle">3 m</text><text x="780.0" y="138.0" class="sv-tick" text-anchor="middle">6 m</text><text x="840.0" y="138.0" class="sv-tick" text-anchor="middle">12 m</text><rect x="911" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="971" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="1031" y="45" width="58" height="24" fill="url(#hachura-grade)"/><rect x="1091" y="45" width="58" height="24" fill="url(#hachura-grade)"/><g><title>SARIMAX · 15 min × 1 m · Theil U: 1,00731</title><rect x="911" y="71" width="58" height="24" fill="#D99E8E"/></g><text x="940.0" y="87.0" class="sv-val" text-anchor="middle">1,00731</text><g><title>SARIMAX · 15 min × 3 m · Theil U: 1,00184</title><rect x="971" y="71" width="58" height="24" fill="#E3C4B9"/></g><text x="1000.0" y="87.0" class="sv-val" text-anchor="middle">1,00184</text><g><title>SARIMAX · 15 min × 6 m · Theil U: 1,00047</title><rect x="1031" y="71" width="58" height="24" fill="#E9D7CE"/></g><text x="1060.0" y="87.0" class="sv-val" text-anchor="middle">1,00047</text><g><title>SARIMAX · 15 min × 12 m · Theil U: 1,00084</title><rect x="1091" y="71" width="58" height="24" fill="#E7D1C7"/></g><text x="1120.0" y="87.0" class="sv-val" text-anchor="middle">1,00084</text><g><title>SARIMAX · 60 min × 1 m · Theil U: 1,03381</title><rect x="911" y="97" width="58" height="24" fill="#C0452A"/></g><text x="940.0" y="113.0" class="sv-val t-folha" text-anchor="middle">1,03381</text><g><title>SARIMAX · 60 min × 3 m · Theil U: 1,01062</title><rect x="971" y="97" width="58" height="24" fill="#D48E7C"/></g><text x="1000.0" y="113.0" class="sv-val" text-anchor="middle">1,01062</text><g><title>SARIMAX · 60 min × 6 m · Theil U: 1,00439</title><rect x="1031" y="97" width="58" height="24" fill="#DDAFA1"/></g><text x="1060.0" y="113.0" class="sv-val" text-anchor="middle">1,00439</text><g><title>SARIMAX · 60 min × 12 m · Theil U: 1,00524</title><rect x="1091" y="97" width="58" height="24" fill="#DCAA9B"/></g><text x="1120.0" y="113.0" class="sv-val" text-anchor="middle">1,00524</text><rect x="1032.0" y="98.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="940.0" y="138.0" class="sv-tick" text-anchor="middle">1 m</text><text x="1000.0" y="138.0" class="sv-tick" text-anchor="middle">3 m</text><text x="1060.0" y="138.0" class="sv-tick" text-anchor="middle">6 m</text><text x="1120.0" y="138.0" class="sv-tick" text-anchor="middle">12 m</text><text x="0.0" y="166.0" class="sv-rot2" text-anchor="start">Esperança por operação (pts), operando todo candle, sem regra de entrada e saída, custo de 5 pts</text><text x="62.0" y="195.0" class="sv-tick" text-anchor="end">1 min</text><text x="62.0" y="221.0" class="sv-tick" text-anchor="end">15 min</text><text x="62.0" y="247.0" class="sv-tick" text-anchor="end">60 min</text><g><title>ARIMA · 1 min × 1 m · esperança: −4,7</title><rect x="71" y="179" width="58" height="24" fill="#D79887"/></g><text x="100.0" y="195.0" class="sv-val" text-anchor="middle">−4,7</text><g><title>ARIMA · 1 min × 3 m · esperança: −4,7</title><rect x="131" y="179" width="58" height="24" fill="#D79887"/></g><text x="160.0" y="195.0" class="sv-val" text-anchor="middle">−4,7</text><g><title>ARIMA · 1 min × 6 m · esperança: −4,6</title><rect x="191" y="179" width="58" height="24" fill="#D79988"/></g><text x="220.0" y="195.0" class="sv-val" text-anchor="middle">−4,6</text><g><title>ARIMA · 1 min × 12 m · esperança: −4,5</title><rect x="251" y="179" width="58" height="24" fill="#D79988"/></g><text x="280.0" y="195.0" class="sv-val" text-anchor="middle">−4,5</text><g><title>ARIMA · 15 min × 1 m · esperança: −3,3</title><rect x="71" y="205" width="58" height="24" fill="#DBA596"/></g><text x="100.0" y="221.0" class="sv-val" text-anchor="middle">−3,3</text><g><title>ARIMA · 15 min × 3 m · esperança: −5,3</title><rect x="131" y="205" width="58" height="24" fill="#D69381"/></g><text x="160.0" y="221.0" class="sv-val" text-anchor="middle">−5,3</text><g><title>ARIMA · 15 min × 6 m · esperança: −5,3</title><rect x="191" y="205" width="58" height="24" fill="#D69381"/></g><text x="220.0" y="221.0" class="sv-val" text-anchor="middle">−5,3</text><g><title>ARIMA · 15 min × 12 m · esperança: −7,1</title><rect x="251" y="205" width="58" height="24" fill="#D28571"/></g><text x="280.0" y="221.0" class="sv-val" text-anchor="middle">−7,1</text><g><title>ARIMA · 60 min × 1 m · esperança: −10,9</title><rect x="71" y="231" width="58" height="24" fill="#CB6C56"/></g><text x="100.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−10,9</text><g><title>ARIMA · 60 min × 3 m · esperança: −18,7</title><rect x="131" y="231" width="58" height="24" fill="#C0452A"/></g><text x="160.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−18,7</text><g><title>ARIMA · 60 min × 6 m · esperança: −1,4</title><rect x="191" y="231" width="58" height="24" fill="#E1BDB0"/></g><text x="220.0" y="247.0" class="sv-val" text-anchor="middle">−1,4</text><g><title>ARIMA · 60 min × 12 m · esperança: −16,8</title><rect x="251" y="231" width="58" height="24" fill="#C24E34"/></g><text x="280.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−16,8</text><rect x="192.0" y="232.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="100.0" y="272.0" class="sv-tick" text-anchor="middle">1 m</text><text x="160.0" y="272.0" class="sv-tick" text-anchor="middle">3 m</text><text x="220.0" y="272.0" class="sv-tick" text-anchor="middle">6 m</text><text x="280.0" y="272.0" class="sv-tick" text-anchor="middle">12 m</text><g><title>ARIMAX · 1 min × 1 m · esperança: −5,0</title><rect x="351" y="179" width="58" height="24" fill="#D69684"/></g><text x="380.0" y="195.0" class="sv-val" text-anchor="middle">−5,0</text><g><title>ARIMAX · 1 min × 3 m · esperança: −4,8</title><rect x="411" y="179" width="58" height="24" fill="#D79786"/></g><text x="440.0" y="195.0" class="sv-val" text-anchor="middle">−4,8</text><g><title>ARIMAX · 1 min × 6 m · esperança: −4,6</title><rect x="471" y="179" width="58" height="24" fill="#D79988"/></g><text x="500.0" y="195.0" class="sv-val" text-anchor="middle">−4,6</text><g><title>ARIMAX · 1 min × 12 m · esperança: −4,5</title><rect x="531" y="179" width="58" height="24" fill="#D89A89"/></g><text x="560.0" y="195.0" class="sv-val" text-anchor="middle">−4,5</text><g><title>ARIMAX · 15 min × 1 m · esperança: −7,8</title><rect x="351" y="205" width="58" height="24" fill="#D0806C"/></g><text x="380.0" y="221.0" class="sv-val t-folha" text-anchor="middle">−7,8</text><g><title>ARIMAX · 15 min × 3 m · esperança: −6,0</title><rect x="411" y="205" width="58" height="24" fill="#D48D7A"/></g><text x="440.0" y="221.0" class="sv-val" text-anchor="middle">−6,0</text><g><title>ARIMAX · 15 min × 6 m · esperança: −3,7</title><rect x="471" y="205" width="58" height="24" fill="#D9A191"/></g><text x="500.0" y="221.0" class="sv-val" text-anchor="middle">−3,7</text><g><title>ARIMAX · 15 min × 12 m · esperança: −5,3</title><rect x="531" y="205" width="58" height="24" fill="#D69381"/></g><text x="560.0" y="221.0" class="sv-val" text-anchor="middle">−5,3</text><g><title>ARIMAX · 60 min × 1 m · esperança: −9,2</title><rect x="351" y="231" width="58" height="24" fill="#CE7762"/></g><text x="380.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−9,2</text><g><title>ARIMAX · 60 min × 3 m · esperança: −14,4</title><rect x="411" y="231" width="58" height="24" fill="#C65941"/></g><text x="440.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−14,4</text><g><title>ARIMAX · 60 min × 6 m · esperança: −16,4</title><rect x="471" y="231" width="58" height="24" fill="#C34F36"/></g><text x="500.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−16,4</text><g><title>ARIMAX · 60 min × 12 m · esperança: −15,5</title><rect x="531" y="231" width="58" height="24" fill="#C4543B"/></g><text x="560.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−15,5</text><rect x="472.0" y="232.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="380.0" y="272.0" class="sv-tick" text-anchor="middle">1 m</text><text x="440.0" y="272.0" class="sv-tick" text-anchor="middle">3 m</text><text x="500.0" y="272.0" class="sv-tick" text-anchor="middle">6 m</text><text x="560.0" y="272.0" class="sv-tick" text-anchor="middle">12 m</text><rect x="631" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="691" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="751" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="811" y="179" width="58" height="24" fill="url(#hachura-grade)"/><g><title>SARIMA · 15 min × 1 m · esperança: −5,1</title><rect x="631" y="205" width="58" height="24" fill="#D69483"/></g><text x="660.0" y="221.0" class="sv-val" text-anchor="middle">−5,1</text><g><title>SARIMA · 15 min × 3 m · esperança: −5,0</title><rect x="691" y="205" width="58" height="24" fill="#D69583"/></g><text x="720.0" y="221.0" class="sv-val" text-anchor="middle">−5,0</text><g><title>SARIMA · 15 min × 6 m · esperança: −3,8</title><rect x="751" y="205" width="58" height="24" fill="#D9A090"/></g><text x="780.0" y="221.0" class="sv-val" text-anchor="middle">−3,8</text><g><title>SARIMA · 15 min × 12 m · esperança: −2,9</title><rect x="811" y="205" width="58" height="24" fill="#DCA99B"/></g><text x="840.0" y="221.0" class="sv-val" text-anchor="middle">−2,9</text><g><title>SARIMA · 60 min × 1 m · esperança: −15,7</title><rect x="631" y="231" width="58" height="24" fill="#C4533A"/></g><text x="660.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−15,7</text><g><title>SARIMA · 60 min × 3 m · esperança: −15,7</title><rect x="691" y="231" width="58" height="24" fill="#C45339"/></g><text x="720.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−15,7</text><g><title>SARIMA · 60 min × 6 m · esperança: −3,5</title><rect x="751" y="231" width="58" height="24" fill="#DAA494"/></g><text x="780.0" y="247.0" class="sv-val" text-anchor="middle">−3,5</text><g><title>SARIMA · 60 min × 12 m · esperança: −4,0</title><rect x="811" y="231" width="58" height="24" fill="#D99E8E"/></g><text x="840.0" y="247.0" class="sv-val" text-anchor="middle">−4,0</text><rect x="752.0" y="232.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="660.0" y="272.0" class="sv-tick" text-anchor="middle">1 m</text><text x="720.0" y="272.0" class="sv-tick" text-anchor="middle">3 m</text><text x="780.0" y="272.0" class="sv-tick" text-anchor="middle">6 m</text><text x="840.0" y="272.0" class="sv-tick" text-anchor="middle">12 m</text><rect x="911" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="971" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="1031" y="179" width="58" height="24" fill="url(#hachura-grade)"/><rect x="1091" y="179" width="58" height="24" fill="url(#hachura-grade)"/><g><title>SARIMAX · 15 min × 1 m · esperança: −8,1</title><rect x="911" y="205" width="58" height="24" fill="#D07E69"/></g><text x="940.0" y="221.0" class="sv-val t-folha" text-anchor="middle">−8,1</text><g><title>SARIMAX · 15 min × 3 m · esperança: −4,4</title><rect x="971" y="205" width="58" height="24" fill="#D89A8A"/></g><text x="1000.0" y="221.0" class="sv-val" text-anchor="middle">−4,4</text><g><title>SARIMAX · 15 min × 6 m · esperança: −3,5</title><rect x="1031" y="205" width="58" height="24" fill="#DAA394"/></g><text x="1060.0" y="221.0" class="sv-val" text-anchor="middle">−3,5</text><g><title>SARIMAX · 15 min × 12 m · esperança: −5,2</title><rect x="1091" y="205" width="58" height="24" fill="#D69382"/></g><text x="1120.0" y="221.0" class="sv-val" text-anchor="middle">−5,2</text><g><title>SARIMAX · 60 min × 1 m · esperança: −16,2</title><rect x="911" y="231" width="58" height="24" fill="#C35037"/></g><text x="940.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−16,2</text><g><title>SARIMAX · 60 min × 3 m · esperança: −11,9</title><rect x="971" y="231" width="58" height="24" fill="#C96750"/></g><text x="1000.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−11,9</text><g><title>SARIMAX · 60 min × 6 m · esperança: −9,5</title><rect x="1031" y="231" width="58" height="24" fill="#CD745F"/></g><text x="1060.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−9,5</text><g><title>SARIMAX · 60 min × 12 m · esperança: −12,0</title><rect x="1091" y="231" width="58" height="24" fill="#C9664F"/></g><text x="1120.0" y="247.0" class="sv-val t-folha" text-anchor="middle">−12,0</text><rect x="1032.0" y="232.0" width="56.0" height="22.0" class="s-tinta tracejado"/><text x="940.0" y="272.0" class="sv-tick" text-anchor="middle">1 m</text><text x="1000.0" y="272.0" class="sv-tick" text-anchor="middle">3 m</text><text x="1060.0" y="272.0" class="sv-tick" text-anchor="middle">6 m</text><text x="1120.0" y="272.0" class="sv-tick" text-anchor="middle">12 m</text><text x="610.0" y="290.0" class="sv-tick" text-anchor="middle">janela de treino (meses)</text></svg><p class="legenda"><span><svg viewBox="0 0 34 12" aria-hidden="true" style="width:34px"><rect x="1" y="1" width="7" height="10" fill="#E2C2B6"/><rect x="9" y="1" width="7" height="10" fill="#D79887"/><rect x="17" y="1" width="7" height="10" fill="#CC6E58"/><rect x="25" y="1" width="7" height="10" fill="#C0452A"/></svg>pior que a referência</span><span><svg viewBox="0 0 34 12" aria-hidden="true" style="width:34px"><rect x="1" y="1" width="7" height="10" fill="#C6CAD0"/><rect x="9" y="1" width="7" height="10" fill="#9EAABD"/><rect x="17" y="1" width="7" height="10" fill="#758AAA"/><rect x="25" y="1" width="7" height="10" fill="#4D6996"/></svg>melhor que a referência</span><span><svg viewBox="0 0 22 12" aria-hidden="true"><rect x="3" y="1" width="16" height="10" fill="url(#hachura-grade)" class="borda"/></svg>não estimado</span><span><svg viewBox="0 0 22 12" aria-hidden="true"><rect x="4" y="1" width="14" height="10" class="s-tinta tracejado"/></svg>60 min × 6 meses: escolhida com o ARIMA e aplicada às variantes</span></p><figcaption>Referência: Theil U = 1 (prever zero) e esperança = 0. Mesmo walk-forward da frente, com retreino trimestral. SARIMA e SARIMAX não foram estimados em 1 min: o termo sazonal ficaria a ~565 candles.</figcaption></figure>
+<div class="tres">
+  <div><p>Theil U de 0,99995 a 1,034. As 2 combinações abaixo de 1 erram
+    no máximo 0,005% menos que prever zero, e mesmo assim perdem dinheiro.</p></div>
+  <div><p>Esperança operando todo candle, sem regra: de −1,4 a −18,7 pts. A ARIMAX tem
+    −16,4 aqui e +10,2 com a melhor regra (slide anterior).</p></div>
+  <div><p>60 min × 6 meses foi escolhida com o ARIMA, a maior esperança das 40, e depois aplicada às variantes.</p></div>
+</div>
+</div></div>
+  <div class="foot"><span>Validação 2024 · ARIMA(1,0,1), ARIMAX, SARIMA e SARIMAX · candles de 1, 15 e 60 min × janelas de 1, 3, 6 e 12 meses</span><span class="pg"></span></div>
+</section>
+
+<section class="slide est" data-title="ARIMA · parâmetros do ARIMA" style="--c: var(--arima)">
+  <div class="rail"><span class="num">III</span><span class="bar"></span><span class="lbl">ARIMA</span></div>
+  <div class="kicker">III · Frente estatística · modelos ARIMA · parâmetros do ARIMA</div>
+  <h1>O ARIMA não achou estrutura, e <em>os próprios parâmetros</em> mostram isso</h1>
+  <div class="corpo l-texto-fig">
+<div class="texto"><ul><li>Em quase todo trimestre, <strong>φ ≈ −θ</strong>: a parte AR e a parte MA se anulam, o modelo vira ruído branco e a melhor previsão passa a ser zero.</li><li>Com φ = −θ, qualquer valor de φ descreve o mesmo modelo. Os dados não têm como escolher um, e por isso φ pula de −0,96 a +0,89 entre trimestres. Não é o mercado mudando.</li><li>A autocorrelação que o modelo ajustado implica fica perto de zero em todos os trimestres, entre −0,10 e +0,06.</li><li>A previsão fica colada em zero: desvio de 0,016%, contra 0,288% do retorno real.</li></ul></div>
+<figure class="fig"><svg viewBox="0 0 560 292" role="img" aria-label="Em cada trimestre, phi e menos theta quase coincidem: as partes AR e MA se anulam"><line x1="50.0" y1="250.0" x2="548.0" y2="250.0" class="sv-grade"/><text x="42.0" y="254.0" class="sv-tick" text-anchor="end">−1,0</text><line x1="50.0" y1="197.5" x2="548.0" y2="197.5" class="sv-grade"/><text x="42.0" y="201.5" class="sv-tick" text-anchor="end">−0,5</text><line x1="50.0" y1="92.5" x2="548.0" y2="92.5" class="sv-grade"/><text x="42.0" y="96.5" class="sv-tick" text-anchor="end">0,5</text><line x1="50.0" y1="40.0" x2="548.0" y2="40.0" class="sv-grade"/><text x="42.0" y="44.0" class="sv-tick" text-anchor="end">1,0</text><line x1="50.0" y1="145.0" x2="548.0" y2="145.0" class="sv-zero"/><text x="42.0" y="149.0" class="sv-tick" text-anchor="end">0</text><circle cx="77.7" cy="117.7" r="9" class="s-laranja grosso"/><circle cx="77.7" cy="114.5" r="5.5" class="f-azul"/><text x="77.7" y="272.0" class="sv-tick" text-anchor="middle">jan/24</text><circle cx="133.0" cy="51.5" r="9" class="s-laranja grosso"/><circle cx="133.0" cy="51.5" r="5.5" class="f-azul"/><text x="133.0" y="272.0" class="sv-tick" text-anchor="middle">abr/24</text><circle cx="188.3" cy="154.4" r="9" class="s-laranja grosso"/><circle cx="188.3" cy="159.7" r="5.5" class="f-azul"/><text x="188.3" y="272.0" class="sv-tick" text-anchor="middle">jul/24</text><circle cx="243.7" cy="79.9" r="9" class="s-laranja grosso"/><circle cx="243.7" cy="76.8" r="5.5" class="f-azul"/><text x="243.7" y="272.0" class="sv-tick" text-anchor="middle">out/24</text><circle cx="299.0" cy="210.1" r="9" class="s-laranja grosso"/><circle cx="299.0" cy="213.2" r="5.5" class="f-azul"/><text x="299.0" y="272.0" class="sv-tick" text-anchor="middle">jan/25</text><circle cx="354.3" cy="244.8" r="9" class="s-laranja grosso"/><circle cx="354.3" cy="245.8" r="5.5" class="f-azul"/><text x="354.3" y="272.0" class="sv-tick" text-anchor="middle">abr/25</text><circle cx="409.7" cy="140.8" r="9" class="s-laranja grosso"/><circle cx="409.7" cy="145.0" r="5.5" class="f-azul"/><text x="409.7" y="272.0" class="sv-tick" text-anchor="middle">jul/25</text><circle cx="465.0" cy="149.2" r="9" class="s-laranja grosso"/><circle cx="465.0" cy="159.7" r="5.5" class="f-azul"/><text x="465.0" y="272.0" class="sv-tick" text-anchor="middle">out/25</text><circle cx="520.3" cy="92.5" r="9" class="s-laranja grosso"/><circle cx="520.3" cy="86.2" r="5.5" class="f-azul"/><text x="520.3" y="272.0" class="sv-tick" text-anchor="middle">jan/26</text><circle cx="58.0" cy="14.0" r="5.5" class="f-azul"/><text x="70.0" y="18.0" class="sv-rot2" text-anchor="start">φ (parte AR)</text><circle cx="190.0" cy="14.0" r="9" class="s-laranja grosso"/><text x="206.0" y="18.0" class="sv-rot2" text-anchor="start">−θ (parte MA, com o sinal trocado)</text></svg><figcaption>ARIMAX, 60 min × 6 meses: um ajuste por trimestre, parâmetros fixos dentro dele.</figcaption></figure></div>
+  <div class="foot"><span>ARIMAX, 60 min × 6 meses · validação 2024 e teste 01/2025 → 03/2026</span><span class="pg"></span></div>
+</section>
+
+<section class="slide est" data-title="ARIMA · conclusão" style="--c: var(--arima)">
+  <div class="rail"><span class="num">III</span><span class="bar"></span><span class="lbl">Conclusão</span></div>
+  <div class="kicker">III · Frente estatística · conclusão</div>
+  <h1>A família ARIMA não paga o custo: a direção do próximo candle <em class="mau">se comportou como ruído</em></h1>
+  <div class="corpo l-tres-cartoes">
+<div class="cartao">
+  <p class="rotulo">Previsão</p>
+  <h3>Nenhum modelo erra menos que prever zero</h3>
+  <div><div class="big">0,016%<small>desvio da previsão</small></div><p class="nota">contra 0,288% do retorno real</p></div>
+  <ul><li>φ ≈ −θ: as partes AR e MA se anulam, e a previsão fica colada em zero.</li>
+    <li>Nas 2 combinações com Theil U abaixo de 1, o erro cai no máximo 0,005%.</li></ul>
+</div>
+<div class="cartao">
+  <p class="rotulo">Operação</p>
+  <h3>Nenhuma combinação dá lucro</h3>
+  <div><div class="big" style="--c: var(--bad)">−41<small>pts por operação no teste</small></div>
+    <p class="nota">± 42 · percentil 19 entre 2.000 sorteios aleatórios</p></div>
+  <ul><li>Operando todo candle, as 40 combinações perdem de 1,4 a 18,7 pts por operação.</li>
+    <li>A ARIMAX escolhida tinha +10 ± 19 na validação: vantagem menor que o erro.</li></ul>
+</div>
+<div class="cartao">
+  <p class="rotulo">Causa</p>
+  <h3>O retorno não tem memória que pague o custo</h3>
+  <div><div class="big">0,014<small>maior ρ₁ medido</small></div><p class="nota">o custo base exigiria de 0,02 a 0,20, conforme o candle</p></div>
+  <ul><li>De 1 a 120 min, toda autocorrelação fica dentro da faixa de ruído.</li>
+    <li>Sem memória, o melhor que o ARIMA consegue é prever zero.</li></ul>
+</div>
+<p class="destaque largo">A memória linear que o ARIMA explora é pequena demais para o custo de operar. Um ganho na direção teria de vir de outra fonte de sinal.</p></div>
+  <div class="foot"><span>Validação 2024 · teste 01/2025 → 03/2026 · custo de 5 pts por operação</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= IV. ML · ROTEIRO ======================= -->
+<section class="slide" data-title="ML · roteiro">
+  <div class="rail" style="--c: var(--ml)"><span class="num">IV</span><span class="bar"></span><span class="lbl">Machine learning</span></div>
+  <div class="kicker" style="--c: var(--ml)">IV · Frente de machine learning · Random Forest</div>
+  <h1>Seis passos, <em>um grupo de decisões por vez</em></h1>
+  <p class="lead">A ordem vai do que define o problema ao que só ajusta o resultado. As regras de compra e venda nunca voltam a mudar os passos anteriores.</p>
+  <div class="body" style="top: 300px">
+    <div class="steps">
+      <div class="step done"><div class="sn">1</div><h4>Candles</h4><p>Tamanho do candle: 1 min</p></div>
+      <div class="step done"><div class="sn">2</div><h4>Features</h4><p>O que o modelo enxerga: as 21 candidatas</p></div>
+      <div class="step done"><div class="sn">3</div><h4>Janela + retreino</h4><p>12 meses de passado, refeito a cada semestre</p></div>
+      <div class="step done"><div class="sn">4</div><h4>Hiperparâmetros</h4><p>50 árvores, profundidade 2, folha 10%, raiz das features</p></div>
+      <div class="step run"><div class="sn">5</div><h4>Regras</h4><p>Quando comprar, quando vender e como sair · em desenvolvimento</p></div>
+      <div class="step"><div class="sn">6</div><h4>Validação</h4><p>Congelar tudo e rodar uma vez em 2025–26</p></div>
+    </div>
+    <div style="display:flex; gap:26px; margin-top:22px; font-size:13px; color:var(--muted)" class="mono">
+      <span style="color:var(--good); white-space:nowrap">■ concluído</span><span style="color:var(--ml); white-space:nowrap">■ em desenvolvimento</span><span style="white-space:nowrap">■ a fazer</span>
+      <span style="margin-left:auto; text-align:right">Toda escolha é medida no teste de 2024 · em empate (1 EP), a mais simples</span>
+    </div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN · Random Forest</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= IV.1 CANDLE ======================= -->
+<section class="slide" data-title="IV.1 · candles">
+  <div class="rail" style="--c: var(--ml)"><span class="num">IV.1</span><span class="bar"></span><span class="lbl">Candles</span></div>
+  <div class="kicker" style="--c: var(--ml)">IV.1 · Candles · escolha do horizonte</div>
+  <h1>Escolhido o candle de <em>1 minuto</em>: o único com sinal fora do ruído, positivo nos 12 meses de 2024</h1>
+  <div class="body" style="top:200px">
+    <div class="cols" style="grid-template-columns:640px 1fr; gap:36px">
+      <div><svg viewBox="0 0 640 314" width="640" height="314" style="display:block;overflow:visible"><text x="0" y="12" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#6e7884">correlação média mensal em 2024 · ±2 erros-padrão</text><line x1="150.0" x2="150.0" y1="34" y2="284" stroke="#d8d3c8" stroke-width="1"/><text x="150.0" y="298" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">−0,06</text><line x1="225.0" x2="225.0" y1="34" y2="284" stroke="#d8d3c8" stroke-width="1"/><text x="225.0" y="298" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">−0,03</text><line x1="300.0" x2="300.0" y1="34" y2="284" stroke="#d8d3c8" stroke-width="1"/><text x="300.0" y="298" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,00</text><line x1="375.0" x2="375.0" y1="34" y2="284" stroke="#d8d3c8" stroke-width="1"/><text x="375.0" y="298" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,03</text><line x1="450.0" x2="450.0" y1="34" y2="284" stroke="#d8d3c8" stroke-width="1"/><text x="450.0" y="298" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,06</text><line x1="300.0" x2="300.0" y1="34" y2="284" stroke="#3d4753" stroke-width="1.5"/><rect x="0" y="37" width="640" height="44" fill="#e6e1d6"/><rect x="0" y="37" width="3" height="44" fill="#b8720b"/><text x="12" y="64.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:600;fill:#1b2128">1 min</text><line x1="326.1" x2="361.7" y1="59.0" y2="59.0" stroke="#b8720b" stroke-width="2.5"/><line x1="326.1" x2="326.1" y1="52.0" y2="66.0" stroke="#b8720b" stroke-width="2.5"/><line x1="361.7" x2="361.7" y1="52.0" y2="66.0" stroke="#b8720b" stroke-width="2.5"/><circle cx="343.9" cy="59.0" r="7" fill="#b8720b"/><text x="636" y="64.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#b8720b;font-weight:600">0,018 · t 4,9 · 12/12</text><text x="12" y="114.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">5 min</text><line x1="270.9" x2="340.3" y1="109.0" y2="109.0" stroke="#6e7884" stroke-width="2.5"/><line x1="270.9" x2="270.9" y1="102.0" y2="116.0" stroke="#6e7884" stroke-width="2.5"/><line x1="340.3" x2="340.3" y1="102.0" y2="116.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="305.6" cy="109.0" r="6" fill="#6e7884"/><text x="636" y="114.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">0,002 · t 0,3 · 7/12</text><text x="12" y="164.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">15 min</text><line x1="236.3" x2="346.5" y1="159.0" y2="159.0" stroke="#6e7884" stroke-width="2.5"/><line x1="236.3" x2="236.3" y1="152.0" y2="166.0" stroke="#6e7884" stroke-width="2.5"/><line x1="346.5" x2="346.5" y1="152.0" y2="166.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="291.4" cy="159.0" r="6" fill="#6e7884"/><text x="636" y="164.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">−0,003 · t −0,3 · 5/12</text><text x="12" y="214.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">30 min</text><line x1="204.8" x2="375.5" y1="209.0" y2="209.0" stroke="#6e7884" stroke-width="2.5"/><line x1="204.8" x2="204.8" y1="202.0" y2="216.0" stroke="#6e7884" stroke-width="2.5"/><line x1="375.5" x2="375.5" y1="202.0" y2="216.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="290.1" cy="209.0" r="6" fill="#6e7884"/><text x="636" y="214.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">−0,004 · t −0,2 · 5/12</text><text x="12" y="264.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">60 min</text><line x1="157.5" x2="387.3" y1="259.0" y2="259.0" stroke="#6e7884" stroke-width="2.5"/><line x1="157.5" x2="157.5" y1="252.0" y2="266.0" stroke="#6e7884" stroke-width="2.5"/><line x1="387.3" x2="387.3" y1="252.0" y2="266.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="272.4" cy="259.0" r="6" fill="#6e7884"/><text x="636" y="264.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">−0,011 · t −0,5 · 4/12</text></svg><p class="note" style="margin-top:10px">Candles maiores diluem o custo (de 12% para 1,6% do movimento), mas não mostraram sinal.</p></div>
+      <div style="display:flex; flex-direction:column; gap:18px">
+        <p class="choice"><b>Escolha: 1 min.</b> Único com t &gt; 2; nenhum outro passou de 0,4.</p>
+        <div class="mstat"><div class="mstat-h">Modelo após esta escolha · teste 2024</div><div class="mstat-g"><div><span>ganho bruto / op.</span><b>+0,37 <i>± 0,11</i></b></div><div><span>após custo de 5 pts</span><b class="neg">−4,63</b></div><div><span>correlação</span><b>0,018 <i>± 0,004</i></b></div><div><span>t robusto · acerto</span><b>4,9 <i>· 50,9%</i></b></div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Teste 2024 · janela 12 meses · re-treino trimestral</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= IV.2 FEATURES ======================= -->
+<section class="slide" data-title="IV.2 · features">
+  <div class="rail" style="--c: var(--ml)"><span class="num">IV.2</span><span class="bar"></span><span class="lbl">Features</span></div>
+  <div class="kicker" style="--c: var(--ml)">IV.2 · Features · escolha do conjunto</div>
+  <h1>Escolhidas <em>todas as 21 features</em>: filtrar só tirou informação do modelo</h1>
+  <div class="body" style="top:200px">
+    <div class="cols" style="grid-template-columns:640px 1fr; gap:36px">
+      <div><svg viewBox="0 0 640 164" width="640" height="164" style="display:block;overflow:visible"><text x="0" y="12" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#6e7884">correlação média mensal em 2024 · ±2 erros-padrão</text><line x1="150.0" x2="150.0" y1="34" y2="134" stroke="#d8d3c8" stroke-width="1"/><text x="150.0" y="148" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,00</text><line x1="247.1" x2="247.1" y1="34" y2="134" stroke="#d8d3c8" stroke-width="1"/><text x="247.1" y="148" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,01</text><line x1="344.3" x2="344.3" y1="34" y2="134" stroke="#d8d3c8" stroke-width="1"/><text x="344.3" y="148" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,02</text><line x1="441.4" x2="441.4" y1="34" y2="134" stroke="#d8d3c8" stroke-width="1"/><text x="441.4" y="148" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,03</text><line x1="333.7" x2="333.7" y1="28" y2="134" stroke="#23877a" stroke-width="2" stroke-dasharray="5 4"/><text x="338.7" y="26" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#23877a">1 EP abaixo da melhor</text><text x="12" y="64.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">Básico · 5</text><line x1="251.5" x2="389.9" y1="59.0" y2="59.0" stroke="#6e7884" stroke-width="2.5"/><line x1="251.5" x2="251.5" y1="52.0" y2="66.0" stroke="#6e7884" stroke-width="2.5"/><line x1="389.9" x2="389.9" y1="52.0" y2="66.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="320.7" cy="59.0" r="6" fill="#6e7884"/><text x="636" y="64.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">0,018 · t 4,9</text><rect x="0" y="87" width="640" height="44" fill="#e6e1d6"/><rect x="0" y="87" width="3" height="44" fill="#b8720b"/><text x="12" y="114.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:600;fill:#1b2128">Todas · 21</text><line x1="291.3" x2="460.8" y1="109.0" y2="109.0" stroke="#b8720b" stroke-width="2.5"/><line x1="291.3" x2="291.3" y1="102.0" y2="116.0" stroke="#b8720b" stroke-width="2.5"/><line x1="460.8" x2="460.8" y1="102.0" y2="116.0" stroke="#b8720b" stroke-width="2.5"/><circle cx="376.0" cy="109.0" r="7" fill="#b8720b"/><text x="636" y="114.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#b8720b;font-weight:600">0,023 · t 5,3</text></svg><div style="margin-top:14px"><div class="mono" style="font-size:12px; color:var(--muted); margin-bottom:8px">as 21 features, em 7 grupos · só informação disponível no fechamento do candle</div><div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 18px"><div style="border-left:2px solid var(--ml); padding-left:8px"><b style="font-size:13.5px">Retornos recentes</b><br><span style="font-size:12.5px; color:var(--muted)">último minuto e os 2 anteriores</span></div><div style="border-left:2px solid var(--ml); padding-left:8px"><b style="font-size:13.5px">Retornos acumulados</b><br><span style="font-size:12.5px; color:var(--muted)">últimos 5, 15 e 60 min</span></div><div style="border-left:2px solid var(--ml); padding-left:8px"><b style="font-size:13.5px">Posição no dia</b><br><span style="font-size:12.5px; color:var(--muted)">retorno do dia, hora, posição entre mínima e máxima</span></div><div style="border-left:2px solid var(--ml); padding-left:8px"><b style="font-size:13.5px">Volatilidade</b><br><span style="font-size:12.5px; color:var(--muted)">20 e 60 min, dia anterior, média de 5 dias</span></div><div style="border-left:2px solid var(--ml); padding-left:8px"><b style="font-size:13.5px">Forma do candle</b><br><span style="font-size:12.5px; color:var(--muted)">tamanho, corpo, onde fechou</span></div><div style="border-left:2px solid var(--ml); padding-left:8px"><b style="font-size:13.5px">Volume e gap</b><br><span style="font-size:12.5px; color:var(--muted)">volume relativo ao horário, gap de abertura</span></div><div style="border-left:2px solid var(--ml); padding-left:8px"><b style="font-size:13.5px">Dólar (WDO)</b><br><span style="font-size:12.5px; color:var(--muted)">último minuto e últimos 15 min</span></div></div></div></div>
+      <div style="display:flex; flex-direction:column; gap:18px">
+        <p class="choice"><b>Escolha: as 21.</b> O melhor cenário; nenhum conjunto menor chegou à faixa de empate.</p>
+        <div class="mstat"><div class="mstat-h">Modelo após esta escolha · teste 2024</div><div class="mstat-g"><div><span>ganho bruto / op.</span><b>+0,43 <i>± 0,11</i></b></div><div><span>após custo de 5 pts</span><b class="neg">−4,57</b></div><div><span>correlação</span><b>0,023 <i>± 0,004</i></b></div><div><span>t robusto · acerto</span><b>5,3 <i>· 51,3%</i></b></div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Candle de 1 min · janela 12 meses · teste 2024</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= IV.3 JANELA ======================= -->
+<section class="slide" data-title="IV.3 · janela">
+  <div class="rail" style="--c: var(--ml)"><span class="num">IV.3</span><span class="bar"></span><span class="lbl">Janela</span></div>
+  <div class="kicker" style="--c: var(--ml)">IV.3 · Janela de treino</div>
+  <h1>Escolhida a janela de <em>12 meses</em>: menos tem poucos dados, mais mistura épocas diferentes</h1>
+  <div class="body" style="top:200px">
+    <div class="cols" style="grid-template-columns:640px 1fr; gap:36px">
+      <div><svg viewBox="0 0 640 314" width="640" height="314" style="display:block;overflow:visible"><text x="0" y="12" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#6e7884">correlação média mensal em 2024 · ±2 erros-padrão</text><line x1="150.0" x2="150.0" y1="34" y2="284" stroke="#d8d3c8" stroke-width="1"/><text x="150.0" y="298" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">−0,02</text><line x1="211.8" x2="211.8" y1="34" y2="284" stroke="#d8d3c8" stroke-width="1"/><text x="211.8" y="298" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">−0,01</text><line x1="273.6" x2="273.6" y1="34" y2="284" stroke="#d8d3c8" stroke-width="1"/><text x="273.6" y="298" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,00</text><line x1="335.5" x2="335.5" y1="34" y2="284" stroke="#d8d3c8" stroke-width="1"/><text x="335.5" y="298" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,01</text><line x1="397.3" x2="397.3" y1="34" y2="284" stroke="#d8d3c8" stroke-width="1"/><text x="397.3" y="298" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,02</text><line x1="459.1" x2="459.1" y1="34" y2="284" stroke="#d8d3c8" stroke-width="1"/><text x="459.1" y="298" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,03</text><line x1="273.6" x2="273.6" y1="34" y2="284" stroke="#3d4753" stroke-width="1.5"/><text x="12" y="64.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">3 meses</text><line x1="283.2" x2="406.5" y1="59.0" y2="59.0" stroke="#6e7884" stroke-width="2.5"/><line x1="283.2" x2="283.2" y1="52.0" y2="66.0" stroke="#6e7884" stroke-width="2.5"/><line x1="406.5" x2="406.5" y1="52.0" y2="66.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="344.9" cy="59.0" r="6" fill="#6e7884"/><text x="636" y="64.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">0,012 · t 2,3</text><text x="12" y="114.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">6 meses</text><line x1="316.7" x2="444.8" y1="109.0" y2="109.0" stroke="#6e7884" stroke-width="2.5"/><line x1="316.7" x2="316.7" y1="102.0" y2="116.0" stroke="#6e7884" stroke-width="2.5"/><line x1="444.8" x2="444.8" y1="102.0" y2="116.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="380.7" cy="109.0" r="6" fill="#6e7884"/><text x="636" y="114.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">0,017 · t 3,3</text><rect x="0" y="137" width="640" height="44" fill="#e6e1d6"/><rect x="0" y="137" width="3" height="44" fill="#b8720b"/><text x="12" y="164.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:600;fill:#1b2128">12 meses</text><line x1="373.3" x2="473.6" y1="159.0" y2="159.0" stroke="#b8720b" stroke-width="2.5"/><line x1="373.3" x2="373.3" y1="152.0" y2="166.0" stroke="#b8720b" stroke-width="2.5"/><line x1="473.6" x2="473.6" y1="152.0" y2="166.0" stroke="#b8720b" stroke-width="2.5"/><circle cx="423.4" cy="159.0" r="7" fill="#b8720b"/><text x="636" y="164.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#b8720b;font-weight:600">0,024 · t 6,0</text><text x="12" y="214.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">24 meses</text><line x1="281.8" x2="392.9" y1="209.0" y2="209.0" stroke="#6e7884" stroke-width="2.5"/><line x1="281.8" x2="281.8" y1="202.0" y2="216.0" stroke="#6e7884" stroke-width="2.5"/><line x1="392.9" x2="392.9" y1="202.0" y2="216.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="337.3" cy="209.0" r="6" fill="#6e7884"/><text x="636" y="214.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">0,010 · t 2,3</text><text x="12" y="264.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">Todo o histórico</text><line x1="168.7" x2="299.7" y1="259.0" y2="259.0" stroke="#6e7884" stroke-width="2.5"/><line x1="168.7" x2="168.7" y1="252.0" y2="266.0" stroke="#6e7884" stroke-width="2.5"/><line x1="299.7" x2="299.7" y1="252.0" y2="266.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="234.2" cy="259.0" r="6" fill="#6e7884"/><text x="636" y="264.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">−0,006 · t −1,2</text></svg><p class="note" style="margin-top:10px">RF mais leve neste passo (100 árvores, até 50 mil linhas por árvore), igual para todas as janelas.</p></div>
+      <div style="display:flex; flex-direction:column; gap:18px">
+        <p class="choice"><b>Escolha: 12 meses.</b> Melhor com folga; com todo o histórico o sinal fica negativo.</p>
+        <div class="mstat"><div class="mstat-h">Modelo após esta escolha · teste 2024</div><div class="mstat-g"><div><span>ganho bruto / op.</span><b>+0,51 <i>± 0,11</i></b></div><div><span>após custo de 5 pts</span><b class="neg">−4,49</b></div><div><span>correlação</span><b>0,024 <i>± 0,004</i></b></div><div><span>t robusto · acerto</span><b>6,0 <i>· 51,4%</i></b></div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Candle de 1 min · 21 features · teste 2024</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= IV.3 RETREINO ======================= -->
+<section class="slide" data-title="IV.3 · retreino">
+  <div class="rail" style="--c: var(--ml)"><span class="num">IV.3</span><span class="bar"></span><span class="lbl">Re-treino</span></div>
+  <div class="kicker" style="--c: var(--ml)">IV.3 · Periodicidade de re-treino</div>
+  <h1>Escolhido o re-treino <em>semestral</em>: empatado com o melhor e o mais simples de operar</h1>
+  <div class="body" style="top:200px">
+    <div class="cols" style="grid-template-columns:640px 1fr; gap:36px">
+      <div><svg viewBox="0 0 520 208" width="620" height="248" style="display:block;overflow:visible"><text x="0" y="12" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#6e7884">janela 12 meses · 2024 · ±2 EP</text><rect x="289.9" y="34" width="60.3" height="144" fill="#23877a" opacity=".12"/><text x="346.2" y="204" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#23877a">empate: ±1 EP do melhor</text><line x1="140.0" x2="140.0" y1="34" y2="178" stroke="#d8d3c8" stroke-width="1"/><text x="140.0" y="192" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,00</text><line x1="214.3" x2="214.3" y1="34" y2="178" stroke="#d8d3c8" stroke-width="1"/><text x="214.3" y="192" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,01</text><line x1="288.6" x2="288.6" y1="34" y2="178" stroke="#d8d3c8" stroke-width="1"/><text x="288.6" y="192" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,02</text><line x1="362.9" x2="362.9" y1="34" y2="178" stroke="#d8d3c8" stroke-width="1"/><text x="362.9" y="192" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,03</text><text x="12" y="63.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">Mensal · 12×</text><line x1="249.4" x2="388.1" y1="58.0" y2="58.0" stroke="#6e7884" stroke-width="2.5"/><line x1="249.4" x2="249.4" y1="51.0" y2="65.0" stroke="#6e7884" stroke-width="2.5"/><line x1="388.1" x2="388.1" y1="51.0" y2="65.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="318.8" cy="58.0" r="6" fill="#6e7884"/><text x="516" y="63.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">0,024 · t 5,2</text><text x="12" y="111.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">Trimestral · 4×</text><line x1="259.8" x2="380.3" y1="106.0" y2="106.0" stroke="#6e7884" stroke-width="2.5"/><line x1="259.8" x2="259.8" y1="99.0" y2="113.0" stroke="#6e7884" stroke-width="2.5"/><line x1="380.3" x2="380.3" y1="99.0" y2="113.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="320.0" cy="106.0" r="6" fill="#6e7884"/><text x="516" y="111.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">0,024 · t 6,0</text><rect x="0" y="133" width="520" height="42" fill="#e6e1d6"/><rect x="0" y="133" width="3" height="42" fill="#b8720b"/><text x="12" y="159.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:600;fill:#1b2128">Semestral · 2×</text><line x1="237.3" x2="376.6" y1="154.0" y2="154.0" stroke="#b8720b" stroke-width="2.5"/><line x1="237.3" x2="237.3" y1="147.0" y2="161.0" stroke="#b8720b" stroke-width="2.5"/><line x1="376.6" x2="376.6" y1="147.0" y2="161.0" stroke="#b8720b" stroke-width="2.5"/><circle cx="306.9" cy="154.0" r="7" fill="#b8720b"/><text x="516" y="159.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#b8720b;font-weight:600">0,022 · t 4,8</text></svg></div>
+      <div style="display:flex; flex-direction:column; gap:18px">
+        <p class="choice"><b>Escolha: semestral.</b> Empatado com o melhor e com só 2 treinos por ano. O trimestral fica anotado como alternativa.</p>
+        <div class="mstat"><div class="mstat-h">Modelo após esta escolha · teste 2024</div><div class="mstat-g"><div><span>ganho bruto / op.</span><b>+0,44 <i>± 0,11</i></b></div><div><span>após custo de 5 pts</span><b class="neg">−4,56</b></div><div><span>correlação</span><b>0,022 <i>± 0,005</i></b></div><div><span>t robusto · acerto</span><b>4,8 <i>· 51,0%</i></b></div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Candle de 1 min · 21 features · janela 12 meses · teste 2024</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= IV.4 ÁRVORES ======================= -->
+<section class="slide" data-title="IV.4 · árvores">
+  <div class="rail" style="--c: var(--ml)"><span class="num">IV.4</span><span class="bar"></span><span class="lbl">Árvores</span></div>
+  <div class="kicker" style="--c: var(--ml)">IV.4 · Hiperparâmetros · nº de árvores</div>
+  <h1>Escolhidas <em>50 árvores</em>: a partir daí a correlação para de mudar</h1>
+  <div class="body" style="top:200px">
+    <div class="cols" style="grid-template-columns:640px 1fr; gap:36px">
+      <div><svg viewBox="0 0 640 330" width="640" height="330" style="display:block;overflow:visible"><text x="0" y="12" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#6e7884">correlação média mensal em 2024 por nº de árvores · faixa = ±2 EP</text><line x1="54" x2="620" y1="296.0" y2="296.0" stroke="#d8d3c8"/><text x="46" y="300.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,00</text><line x1="54" x2="620" y1="220.0" y2="220.0" stroke="#d8d3c8"/><text x="46" y="224.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,01</text><line x1="54" x2="620" y1="144.0" y2="144.0" stroke="#d8d3c8"/><text x="46" y="148.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,02</text><line x1="54" x2="620" y1="68.0" y2="68.0" stroke="#d8d3c8"/><text x="46" y="72.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,03</text><polygon points="54.0,91.2 195.5,68.1 337.0,54.0 478.5,58.9 620.0,55.4 620.0,202.3 478.5,203.0 337.0,196.4 195.5,196.3 54.0,215.7" fill="#b8720b" opacity=".13"/><rect x="54" y="121.3" width="566" height="15.2" fill="#23877a" opacity=".22"/><text x="620" y="115.3" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#23877a">tolerância: ±0,001 do valor com 400 árvores</text><polyline points="54.0,153.5 195.5,132.2 337.0,125.2 478.5,131.0 620.0,128.9" fill="none" stroke="#b8720b" stroke-width="2.5"/><circle cx="54.0" cy="153.5" r="5" fill="#f7f5f0" stroke="#b8720b" stroke-width="2.5"/><text x="54.0" y="316" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">25</text><text x="54.0" y="179.5" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#3d4753">0,0188</text><circle cx="195.5" cy="132.2" r="8" fill="#b8720b" stroke="#b8720b" stroke-width="2.5"/><text x="195.5" y="316" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#b8720b;font-weight:600">50</text><text x="195.5" y="158.2" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#3d4753">0,0216</text><circle cx="337.0" cy="125.2" r="5" fill="#f7f5f0" stroke="#b8720b" stroke-width="2.5"/><text x="337.0" y="316" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">100</text><text x="337.0" y="151.2" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#3d4753">0,0225</text><circle cx="478.5" cy="131.0" r="5" fill="#f7f5f0" stroke="#b8720b" stroke-width="2.5"/><text x="478.5" y="316" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">200</text><text x="478.5" y="157.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#3d4753">0,0217</text><circle cx="620.0" cy="128.9" r="5" fill="#f7f5f0" stroke="#b8720b" stroke-width="2.5"/><text x="620.0" y="316" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">400</text><text x="620.0" y="154.9" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#3d4753">0,0220</text></svg></div>
+      <div style="display:flex; flex-direction:column; gap:18px">
+        <p class="choice"><b>Escolha: 50 árvores.</b> 0,0216 contra 0,0220 com 400; mais árvores só custam tempo.</p>
+        <div class="mstat"><div class="mstat-h">Modelo após esta escolha · teste 2024</div><div class="mstat-g"><div><span>ganho bruto / op.</span><b>+0,42 <i>± 0,11</i></b></div><div><span>após custo de 5 pts</span><b class="neg">−4,58</b></div><div><span>correlação</span><b>0,022 <i>± 0,004</i></b></div><div><span>t robusto · acerto</span><b>5,1 <i>· 51,1%</i></b></div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Janela 12 meses · re-treino semestral · teste 2024</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= IV.4 PROFUNDIDADE × FOLHA ======================= -->
+<section class="slide" data-title="IV.4 · hiperparâmetros">
+  <div class="rail" style="--c: var(--ml)"><span class="num">IV.4</span><span class="bar"></span><span class="lbl">Hiperparâmetros</span></div>
+  <div class="kicker" style="--c: var(--ml)">IV.4 · Hiperparâmetros · profundidade e folha</div>
+  <h1>Árvores rasas com <em>folhas grandes</em> vencem: escolhida a profundidade 2 com folha de 10%</h1>
+  <div class="body" style="top:200px">
+    <div class="cols" style="grid-template-columns:640px 1fr; gap:36px">
+      <div><svg viewBox="0 0 619 348" width="619" height="348" style="display:block;overflow:visible"><text x="0" y="12" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#6e7884">correlação em 2024 · abaixo: treino menos teste (sobreajuste)</text><text x="126.5" y="34" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#3d4753">0,5%</text><text x="235.5" y="34" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#3d4753">1%</text><text x="344.5" y="34" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#3d4753">2%</text><text x="453.5" y="34" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#3d4753">5%</text><text x="562.5" y="34" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#3d4753">10%</text><text x="62" y="80.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753">prof. 2</text><rect x="74" y="44" width="105" height="62" fill="#f2efe8"/><text x="126.5" y="79.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#9aa5b1">não testado</text><rect x="183" y="44" width="105" height="62" fill="#f2efe8"/><text x="235.5" y="79.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#9aa5b1">não testado</text><rect x="292" y="44" width="105" height="62" fill="#f2efe8"/><text x="344.5" y="79.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#9aa5b1">não testado</text><rect x="401" y="44" width="105" height="62" fill="#e08f1a" stroke="#b8720b" stroke-width="4"/><text x="453.5" y="72.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,026</text><text x="453.5" y="90.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,016</text><rect x="510" y="44" width="105" height="62" fill="#eaaf58" stroke="#6e7884" stroke-width="1.5" stroke-dasharray="4 3"/><text x="562.5" y="72.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,024</text><text x="562.5" y="90.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,014</text><text x="62" y="146.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753">prof. 3</text><rect x="74" y="110" width="105" height="62" fill="#eddec7"/><text x="126.5" y="138.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,014</text><text x="126.5" y="156.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,038</text><rect x="183" y="110" width="105" height="62" fill="#ebca96"/><text x="235.5" y="138.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,019</text><text x="235.5" y="156.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,039</text><rect x="292" y="110" width="105" height="62" fill="#ebbd78"/><text x="344.5" y="138.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,021</text><text x="344.5" y="156.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,031</text><rect x="401" y="110" width="105" height="62" fill="#e9ab4d"/><text x="453.5" y="138.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,025</text><text x="453.5" y="156.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,021</text><rect x="510" y="110" width="105" height="62" fill="#eaaf58" stroke="#6e7884" stroke-width="1.5" stroke-dasharray="4 3"/><text x="562.5" y="138.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,024</text><text x="562.5" y="156.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,014</text><text x="62" y="212.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753">prof. 5</text><rect x="74" y="176" width="105" height="62" fill="#ebc489"/><text x="126.5" y="204.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,020</text><text x="126.5" y="222.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,043</text><rect x="183" y="176" width="105" height="62" fill="#eabb73"/><text x="235.5" y="204.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,022</text><text x="235.5" y="222.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,045</text><rect x="292" y="176" width="105" height="62" fill="#ebc68e"/><text x="344.5" y="204.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,019</text><text x="344.5" y="222.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,043</text><rect x="401" y="176" width="105" height="62" fill="#eaae55"/><text x="453.5" y="204.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,024</text><text x="453.5" y="222.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,025</text><rect x="510" y="176" width="105" height="62" fill="#f2efe8"/><text x="562.5" y="211.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#9aa5b1">não testado</text><text x="62" y="278.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753">prof. 8</text><rect x="74" y="242" width="105" height="62" fill="#ebc892"/><text x="126.5" y="270.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,019</text><text x="126.5" y="288.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,065</text><rect x="183" y="242" width="105" height="62" fill="#ebc488"/><text x="235.5" y="270.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,020</text><text x="235.5" y="288.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,063</text><rect x="292" y="242" width="105" height="62" fill="#ebc58a"/><text x="344.5" y="270.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,020</text><text x="344.5" y="288.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,054</text><rect x="401" y="242" width="105" height="62" fill="#eaaf56"/><text x="453.5" y="270.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:600;fill:#1b2128">0,024</text><text x="453.5" y="288.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;fill:#1b2128;opacity:.85">gap 0,026</text><rect x="510" y="242" width="105" height="62" fill="#f2efe8"/><text x="562.5" y="277.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#9aa5b1">não testado</text><text x="399.0" y="322" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">mínimo de candles por folha (% do treino)</text><rect x="74" y="334" width="14" height="11" fill="none" stroke="#6e7884" stroke-width="1.5" stroke-dasharray="4 3"/><text x="94" y="343" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">grade estendida, com raiz das features por divisão</text><rect x="454" y="334" width="14" height="11" fill="#e08f1a" stroke="#b8720b" stroke-width="2.5"/><text x="474" y="343" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">melhor cenário</text></svg><p class="note" style="margin-top:8px">Na grade inicial (profundidade 3 a 8, folha até 5%), o melhor ficou na borda. Por isso a grade foi estendida (contorno tracejado). Com folha de 10%, profundidade 2 e 3 dão o mesmo modelo: a árvore não consegue dividir mais.</p></div>
+      <div style="display:flex; flex-direction:column; gap:18px">
+        <div class="choice"><b>Melhores cenários:</b>
+          <ul style="list-style:none; margin-top:6px; display:grid; gap:6px">
+            <li><b style="color:var(--ink)">Grade inicial:</b> prof. 3 · folha 5% (0,025) e prof. 5 · folha 5% (0,024), levadas ao teste de raiz e metade das features</li>
+            <li><b style="color:var(--ink)">Grade estendida:</b> prof. 2 · folha 5% (0,026, a maior) e prof. 2 · folha 10% (0,024, empatada e mais simples: escolhida)</li>
+          </ul></div>
+        <div class="mstat"><div class="mstat-h">Modelo após esta escolha · teste 2024</div><div class="mstat-g"><div><span>ganho bruto / op.</span><b>+0,26 <i>± 0,11</i></b></div><div><span>após custo de 5 pts</span><b class="neg">−4,74</b></div><div><span>correlação</span><b>0,024 <i>± 0,006</i></b></div><div><span>t robusto · acerto</span><b>4,1 <i>· 51,2%</i></b></div></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Janela 12 meses · re-treino semestral · teste 2024</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= IV.4 FEATURES POR DIVISÃO + EXTENSÃO ======================= -->
+<section class="slide" data-title="IV.4 · modelo final">
+  <div class="rail" style="--c: var(--ml)"><span class="num">IV.4</span><span class="bar"></span><span class="lbl">Hiperparâmetros</span></div>
+  <div class="kicker" style="--c: var(--ml)">IV.4 · Hiperparâmetros · features por divisão e grade estendida</div>
+  <h1>Modelo final: <em>profundidade 2, folha de 10%, raiz das features</em>, o mais simples entre os empatados</h1>
+  <div class="body" style="top:200px">
+    <div class="cols" style="grid-template-columns:640px 1fr; gap:36px">
+      <div><svg viewBox="0 0 640 328" width="640" height="328" style="display:block;overflow:visible"><text x="0" y="12" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#6e7884">correlação média mensal em 2024 · ±2 EP</text><rect x="370.1" y="33" width="33.5" height="268" fill="#23877a" opacity="0.10"/><text x="366.1" y="331" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#23877a">empate: 1 EP abaixo da melhor</text><line x1="240.0" x2="240.0" y1="33" y2="301" stroke="#d8d3c8" stroke-width="1"/><text x="240.0" y="315" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,00</text><line x1="302.2" x2="302.2" y1="33" y2="301" stroke="#d8d3c8" stroke-width="1"/><text x="302.2" y="315" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,01</text><line x1="364.4" x2="364.4" y1="33" y2="301" stroke="#d8d3c8" stroke-width="1"/><text x="364.4" y="315" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,02</text><line x1="426.7" x2="426.7" y1="33" y2="301" stroke="#d8d3c8" stroke-width="1"/><text x="426.7" y="315" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,03</text><line x1="488.9" x2="488.9" y1="33" y2="301" stroke="#d8d3c8" stroke-width="1"/><text x="488.9" y="315" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884">0,04</text><text x="12" y="61.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">prof. 3 · folha 5% · todas</text><line x1="328.3" x2="460.1" y1="56.0" y2="56.0" stroke="#6e7884" stroke-width="2.5"/><line x1="328.3" x2="328.3" y1="49.0" y2="63.0" stroke="#6e7884" stroke-width="2.5"/><line x1="460.1" x2="460.1" y1="49.0" y2="63.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="394.2" cy="56.0" r="6" fill="#6e7884"/><text x="636" y="61.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">0,025 · t 4,7</text><text x="12" y="105.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">prof. 3 · folha 5% · raiz</text><line x1="330.7" x2="469.5" y1="100.0" y2="100.0" stroke="#6e7884" stroke-width="2.5"/><line x1="330.7" x2="330.7" y1="93.0" y2="107.0" stroke="#6e7884" stroke-width="2.5"/><line x1="469.5" x2="469.5" y1="93.0" y2="107.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="400.1" cy="100.0" r="6" fill="#6e7884"/><text x="636" y="105.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">0,026 · t 4,6</text><text x="12" y="149.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">prof. 5 · folha 5% · metade</text><line x1="330.4" x2="468.5" y1="144.0" y2="144.0" stroke="#6e7884" stroke-width="2.5"/><line x1="330.4" x2="330.4" y1="137.0" y2="151.0" stroke="#6e7884" stroke-width="2.5"/><line x1="468.5" x2="468.5" y1="137.0" y2="151.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="399.4" cy="144.0" r="6" fill="#6e7884"/><text x="636" y="149.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">0,026 · t 4,6</text><text x="12" y="193.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">prof. 2 · folha 5% · raiz</text><line x1="336.6" x2="470.6" y1="188.0" y2="188.0" stroke="#6e7884" stroke-width="2.5"/><line x1="336.6" x2="336.6" y1="181.0" y2="195.0" stroke="#6e7884" stroke-width="2.5"/><line x1="470.6" x2="470.6" y1="181.0" y2="195.0" stroke="#6e7884" stroke-width="2.5"/><circle cx="403.6" cy="188.0" r="6" fill="#6e7884"/><text x="636" y="193.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#3d4753;font-weight:400">0,026 · t 4,9</text><rect x="0" y="213.0" width="640" height="38" fill="#e6e1d6"/><rect x="0" y="213.0" width="3" height="38" fill="#b8720b"/><text x="12" y="237.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:600;fill:#1b2128">prof. 2 · folha 10% · raiz</text><line x1="316.7" x2="460.6" y1="232.0" y2="232.0" stroke="#b8720b" stroke-width="2.5"/><line x1="316.7" x2="316.7" y1="225.0" y2="239.0" stroke="#b8720b" stroke-width="2.5"/><line x1="460.6" x2="460.6" y1="225.0" y2="239.0" stroke="#b8720b" stroke-width="2.5"/><circle cx="388.6" cy="232.0" r="7" fill="#b8720b"/><text x="636" y="237.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#b8720b;font-weight:600">0,024 · t 4,1</text><text x="12" y="281.0" style="font-family:'IBM Plex Sans',sans-serif;font-size:15px;font-weight:400;fill:#3d4753">prof. 2 · folha 20% · raiz</text><text x="248.0" y="281.0" style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;fill:#c0452a">previsão constante</text></svg></div>
+      <div style="display:flex; flex-direction:column; gap:14px">
+        <p class="choice"><b>Escolha: prof. 2, folha 10%, raiz.</b> A folha de 5% teve a maior correlação (0,026) e fica como alternativa; 20% deixa a previsão constante.</p>
+        <div class="mstat"><div class="mstat-h">Modelo após esta escolha · teste 2024</div><div class="mstat-g"><div><span>ganho bruto / op.</span><b>+0,26 <i>± 0,11</i></b></div><div><span>após custo de 5 pts</span><b class="neg">−4,74</b></div><div><span>correlação</span><b>0,024 <i>± 0,006</i></b></div><div><span>t robusto · acerto</span><b>4,1 <i>· 51,2%</i></b></div></div><p class="mstat-n">Previsões mais achatadas: ganho bruto menor que o da folha de 5% (+0,37).</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Janela 12 meses · re-treino semestral · 50 árvores · teste 2024</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= IV.4 GANHO ACUMULADO ======================= -->
+<section class="slide" data-title="IV.4 · ganho acumulado">
+  <div class="rail" style="--c: var(--ml)"><span class="num">IV.4</span><span class="bar"></span><span class="lbl">Ganho acumulado</span></div>
+  <div class="kicker" style="--c: var(--ml)">IV.4 · Modelo final · ganho acumulado no teste</div>
+  <h1>Modelo final em 2024: <em>+36,8 mil pts sem custo</em>, −670 mil com custo</h1>
+  <div class="body" style="top:200px">
+    <div class="cols" style="grid-template-columns:640px 1fr; gap:36px">
+      <div><svg viewBox="0 0 640 330" width="640" height="330" style="display:block;overflow:visible"><text x="0.0" y="12.0" text-anchor="start" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">pontos acumulados · operando o sinal em todo candle · teste 2024 · escalas diferentes</text><text x="0.0" y="34.0" text-anchor="start" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#3d4753;font-weight:600">Sem custo</text><line x1="64" x2="610" y1="166.0" y2="166.0" stroke="#d8d3c8" stroke-width="1"/><text x="56.0" y="170.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">−10 mil</text><line x1="64" x2="610" y1="142.0" y2="142.0" stroke="#9aa5b1" stroke-width="1"/><text x="56.0" y="146.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">0</text><line x1="64" x2="610" y1="94.0" y2="94.0" stroke="#d8d3c8" stroke-width="1"/><text x="56.0" y="98.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">+20 mil</text><line x1="64" x2="610" y1="46.0" y2="46.0" stroke="#d8d3c8" stroke-width="1"/><text x="56.0" y="50.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">+40 mil</text><line x1="335.5" x2="335.5" y1="46" y2="166" stroke="#23877a" stroke-width="1.5" stroke-dasharray="5 4"/><polygon points="64.0,142.0 66.6,143.5 68.1,142.9 69.6,148.8 71.1,149.8 75.6,146.9 77.1,147.6 78.5,149.3 80.0,150.9 81.5,151.1 86.0,148.9 87.5,150.8 89.0,150.1 90.5,151.7 92.0,149.9 96.4,154.5 97.9,154.2 99.4,156.5 100.9,154.5 102.4,159.7 106.9,159.2 108.4,161.5 109.9,159.4 111.4,157.1 112.9,154.9 117.3,152.3 118.8,151.5 120.3,150.4 121.8,153.5 123.3,153.4 130.8,150.1 132.2,146.9 133.7,146.0 138.2,143.9 139.7,139.8 141.2,135.2 142.7,137.1 144.2,138.2 148.7,138.2 150.2,134.9 151.6,136.2 153.1,137.9 154.6,139.8 159.1,141.3 160.6,141.4 162.1,141.0 163.6,141.7 165.1,140.3 169.5,140.1 171.0,139.0 172.5,139.9 174.0,138.6 175.5,141.6 180.0,142.5 181.5,137.6 183.0,133.4 184.5,136.2 186.0,136.3 190.4,134.9 191.9,134.6 193.4,135.8 194.9,133.1 200.9,136.6 202.4,134.6 203.9,134.4 205.3,137.4 206.8,136.1 211.3,136.5 212.8,130.4 214.3,128.5 215.8,127.7 217.3,128.9 221.8,128.8 223.2,131.4 224.7,129.3 226.2,128.2 227.7,125.9 232.2,125.4 233.7,125.7 235.2,124.7 236.7,124.5 238.2,120.9 242.6,119.9 244.1,121.9 247.1,124.1 248.6,120.8 253.1,119.7 254.6,121.2 256.1,120.4 257.6,118.7 259.1,122.0 263.5,122.7 265.0,121.6 266.5,120.0 268.0,120.7 269.5,122.3 274.0,126.2 275.5,125.7 277.0,127.5 278.4,125.0 279.9,127.3 284.4,125.0 285.9,130.1 287.4,129.9 290.4,130.6 294.9,132.2 296.3,134.8 297.8,135.8 299.3,135.0 300.8,137.2 305.3,133.6 306.8,132.1 308.3,143.0 309.8,145.1 311.3,148.5 315.7,149.2 317.2,149.6 318.7,147.2 320.2,149.4 321.7,148.1 326.2,147.0 327.7,144.0 329.2,142.4 330.7,139.8 332.2,140.0 336.6,138.9 338.1,138.6 339.6,136.9 341.1,134.7 342.6,134.8 347.1,130.2 348.6,129.1 350.1,132.7 351.5,133.2 353.0,130.8 357.5,129.4 359.0,130.2 360.5,131.5 362.0,128.1 363.5,128.0 368.0,128.5 369.4,130.0 370.9,129.7 372.4,129.3 373.9,128.0 378.4,125.2 379.9,121.0 381.4,122.3 382.9,121.5 384.4,120.3 388.8,116.4 390.3,112.9 391.8,111.9 393.3,109.7 394.8,105.7 399.3,102.7 400.8,101.9 402.3,102.0 403.8,101.3 405.2,102.1 409.7,99.4 411.2,99.5 412.7,98.2 414.2,98.0 415.7,98.8 420.2,100.4 421.7,93.7 423.2,95.7 424.6,93.2 426.1,96.6 430.6,95.1 432.1,97.9 433.6,100.5 435.1,96.7 436.6,100.0 441.1,98.4 442.5,100.9 444.0,97.6 445.5,96.8 447.0,98.3 451.5,96.4 453.0,94.6 454.5,95.6 456.0,99.4 457.5,95.3 461.9,96.1 463.4,93.9 464.9,96.7 466.4,93.1 467.9,96.0 472.4,96.9 473.9,95.3 475.4,95.1 476.9,94.4 478.3,88.5 482.8,89.9 484.3,91.5 485.8,90.2 487.3,85.4 488.8,83.9 493.3,83.1 494.8,85.9 496.2,83.7 497.7,82.6 499.2,83.2 503.7,84.2 505.2,87.0 506.7,84.5 508.2,83.2 509.7,85.3 514.2,86.1 515.6,81.6 517.1,78.1 518.6,78.5 520.1,77.5 524.6,78.7 526.1,81.6 527.6,87.0 529.1,88.5 530.6,88.3 535.0,82.4 536.5,82.1 538.0,82.0 539.5,80.2 545.5,85.5 547.0,86.6 550.0,85.1 551.4,85.4 555.9,82.3 557.4,83.9 558.9,85.2 560.4,84.3 561.9,88.8 566.4,88.1 567.9,87.7 569.3,91.7 570.8,91.5 572.3,89.9 576.8,87.5 578.3,89.0 579.8,93.5 581.3,82.8 582.8,76.9 587.2,73.4 588.7,76.9 590.2,70.6 591.7,63.8 593.2,59.0 597.7,61.9 602.2,58.2 603.7,56.3 608.1,53.6 608.1,142.0" fill="#b8720b" opacity=".10"/><polyline points="64.0,142.0 66.6,143.5 68.1,142.9 69.6,148.8 71.1,149.8 75.6,146.9 77.1,147.6 78.5,149.3 80.0,150.9 81.5,151.1 86.0,148.9 87.5,150.8 89.0,150.1 90.5,151.7 92.0,149.9 96.4,154.5 97.9,154.2 99.4,156.5 100.9,154.5 102.4,159.7 106.9,159.2 108.4,161.5 109.9,159.4 111.4,157.1 112.9,154.9 117.3,152.3 118.8,151.5 120.3,150.4 121.8,153.5 123.3,153.4 130.8,150.1 132.2,146.9 133.7,146.0 138.2,143.9 139.7,139.8 141.2,135.2 142.7,137.1 144.2,138.2 148.7,138.2 150.2,134.9 151.6,136.2 153.1,137.9 154.6,139.8 159.1,141.3 160.6,141.4 162.1,141.0 163.6,141.7 165.1,140.3 169.5,140.1 171.0,139.0 172.5,139.9 174.0,138.6 175.5,141.6 180.0,142.5 181.5,137.6 183.0,133.4 184.5,136.2 186.0,136.3 190.4,134.9 191.9,134.6 193.4,135.8 194.9,133.1 200.9,136.6 202.4,134.6 203.9,134.4 205.3,137.4 206.8,136.1 211.3,136.5 212.8,130.4 214.3,128.5 215.8,127.7 217.3,128.9 221.8,128.8 223.2,131.4 224.7,129.3 226.2,128.2 227.7,125.9 232.2,125.4 233.7,125.7 235.2,124.7 236.7,124.5 238.2,120.9 242.6,119.9 244.1,121.9 247.1,124.1 248.6,120.8 253.1,119.7 254.6,121.2 256.1,120.4 257.6,118.7 259.1,122.0 263.5,122.7 265.0,121.6 266.5,120.0 268.0,120.7 269.5,122.3 274.0,126.2 275.5,125.7 277.0,127.5 278.4,125.0 279.9,127.3 284.4,125.0 285.9,130.1 287.4,129.9 290.4,130.6 294.9,132.2 296.3,134.8 297.8,135.8 299.3,135.0 300.8,137.2 305.3,133.6 306.8,132.1 308.3,143.0 309.8,145.1 311.3,148.5 315.7,149.2 317.2,149.6 318.7,147.2 320.2,149.4 321.7,148.1 326.2,147.0 327.7,144.0 329.2,142.4 330.7,139.8 332.2,140.0 336.6,138.9 338.1,138.6 339.6,136.9 341.1,134.7 342.6,134.8 347.1,130.2 348.6,129.1 350.1,132.7 351.5,133.2 353.0,130.8 357.5,129.4 359.0,130.2 360.5,131.5 362.0,128.1 363.5,128.0 368.0,128.5 369.4,130.0 370.9,129.7 372.4,129.3 373.9,128.0 378.4,125.2 379.9,121.0 381.4,122.3 382.9,121.5 384.4,120.3 388.8,116.4 390.3,112.9 391.8,111.9 393.3,109.7 394.8,105.7 399.3,102.7 400.8,101.9 402.3,102.0 403.8,101.3 405.2,102.1 409.7,99.4 411.2,99.5 412.7,98.2 414.2,98.0 415.7,98.8 420.2,100.4 421.7,93.7 423.2,95.7 424.6,93.2 426.1,96.6 430.6,95.1 432.1,97.9 433.6,100.5 435.1,96.7 436.6,100.0 441.1,98.4 442.5,100.9 444.0,97.6 445.5,96.8 447.0,98.3 451.5,96.4 453.0,94.6 454.5,95.6 456.0,99.4 457.5,95.3 461.9,96.1 463.4,93.9 464.9,96.7 466.4,93.1 467.9,96.0 472.4,96.9 473.9,95.3 475.4,95.1 476.9,94.4 478.3,88.5 482.8,89.9 484.3,91.5 485.8,90.2 487.3,85.4 488.8,83.9 493.3,83.1 494.8,85.9 496.2,83.7 497.7,82.6 499.2,83.2 503.7,84.2 505.2,87.0 506.7,84.5 508.2,83.2 509.7,85.3 514.2,86.1 515.6,81.6 517.1,78.1 518.6,78.5 520.1,77.5 524.6,78.7 526.1,81.6 527.6,87.0 529.1,88.5 530.6,88.3 535.0,82.4 536.5,82.1 538.0,82.0 539.5,80.2 545.5,85.5 547.0,86.6 550.0,85.1 551.4,85.4 555.9,82.3 557.4,83.9 558.9,85.2 560.4,84.3 561.9,88.8 566.4,88.1 567.9,87.7 569.3,91.7 570.8,91.5 572.3,89.9 576.8,87.5 578.3,89.0 579.8,93.5 581.3,82.8 582.8,76.9 587.2,73.4 588.7,76.9 590.2,70.6 591.7,63.8 593.2,59.0 597.7,61.9 602.2,58.2 603.7,56.3 608.1,53.6" fill="none" stroke="#b8720b" stroke-width="2.5" stroke-linejoin="round"/><circle cx="608.1" cy="53.6" r="5" fill="#b8720b"/><text x="600.1" y="43.6" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#b8720b;font-weight:600">+36,8 mil pts</text><text x="199.8" y="70.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#3d4753;font-weight:400">1º sem.: +0,01 pt/op</text><text x="442.8" y="156.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#3d4753;font-weight:400">2º sem.: +0,50 pt/op</text><text x="0.0" y="198.0" text-anchor="start" style="font-family:'IBM Plex Mono',monospace;font-size:12px;fill:#3d4753;font-weight:600">Com custo de 5 pts por operação</text><line x1="64" x2="610" y1="210.0" y2="210.0" stroke="#9aa5b1" stroke-width="1"/><text x="56.0" y="214.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">0</text><line x1="64" x2="610" y1="255.0" y2="255.0" stroke="#d8d3c8" stroke-width="1"/><text x="56.0" y="259.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">−400 mil</text><line x1="64" x2="610" y1="300.0" y2="300.0" stroke="#d8d3c8" stroke-width="1"/><text x="56.0" y="304.0" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">−800 mil</text><line x1="335.5" x2="335.5" y1="210" y2="300" stroke="#23877a" stroke-width="1.5" stroke-dasharray="5 4"/><polygon points="64.0,210.0 66.6,210.4 68.1,210.7 69.6,211.3 71.1,211.6 75.6,211.8 77.1,212.2 78.5,212.6 80.0,213.0 81.5,213.3 86.0,213.5 87.5,213.9 89.0,214.2 90.5,214.6 92.0,214.8 96.4,215.3 97.9,215.6 99.4,216.1 100.9,216.3 102.4,216.9 106.9,217.2 108.4,217.6 109.9,217.8 111.4,218.0 112.9,218.2 117.3,218.4 118.8,218.7 120.3,219.0 121.8,219.4 123.3,219.7 130.8,219.8 132.2,219.9 133.7,220.2 138.2,220.4 139.7,220.5 141.2,220.7 142.7,221.1 144.2,221.4 148.7,221.7 150.2,221.9 151.6,222.3 153.1,222.7 154.6,223.1 159.1,223.5 160.6,223.8 162.1,224.1 163.6,224.4 165.1,224.7 169.5,225.0 171.0,225.3 172.5,225.6 174.0,225.9 175.5,226.3 180.0,226.7 181.5,226.8 183.0,226.9 184.5,227.4 186.0,227.7 190.4,227.9 191.9,228.2 193.4,228.6 194.9,228.8 200.9,229.3 202.4,229.5 203.9,229.8 205.3,230.3 206.8,230.5 211.3,230.9 212.8,230.9 214.3,231.1 215.8,231.4 217.3,231.8 221.8,232.1 223.2,232.5 224.7,232.7 226.2,233.0 227.7,233.2 232.2,233.5 233.7,233.8 235.2,234.1 236.7,234.4 238.2,234.6 242.6,234.8 244.1,235.3 247.1,235.7 248.6,235.8 253.1,236.1 254.6,236.5 256.1,236.8 257.6,237.0 259.1,237.5 263.5,237.8 265.0,238.1 266.5,238.3 268.0,238.7 269.5,239.1 274.0,239.6 275.5,239.9 277.0,240.3 278.4,240.5 279.9,240.9 284.4,241.1 285.9,241.7 287.4,242.0 290.4,242.3 294.9,242.7 296.3,243.2 297.8,243.5 299.3,243.8 300.8,244.2 305.3,244.4 306.8,244.6 308.3,245.4 309.8,245.9 311.3,246.3 315.7,246.7 317.2,247.0 318.7,247.2 320.2,247.6 321.7,247.9 326.2,248.2 327.7,248.3 329.2,248.6 330.7,248.8 332.2,249.1 336.6,249.4 338.1,249.7 339.6,249.9 341.1,250.1 342.6,250.4 347.1,250.5 348.6,250.8 350.1,251.3 351.5,251.6 353.0,251.8 357.5,252.1 359.0,252.5 360.5,252.8 362.0,253.0 363.5,253.3 368.0,253.6 369.4,254.0 370.9,254.3 372.4,254.6 373.9,254.9 378.4,255.1 379.9,255.2 381.4,255.6 382.9,255.8 384.4,256.1 388.8,256.2 390.3,256.4 391.8,256.7 393.3,256.9 394.8,257.0 399.3,257.2 400.8,257.5 402.3,257.8 403.8,258.1 405.2,258.4 409.7,258.6 411.2,258.9 412.7,259.2 414.2,259.5 415.7,259.9 420.2,260.2 421.7,260.3 423.2,260.7 424.6,260.9 426.1,261.3 430.6,261.6 432.1,262.0 433.6,262.5 435.1,262.6 436.6,263.1 441.1,263.3 442.5,263.8 444.0,263.9 445.5,264.2 447.0,264.6 451.5,264.8 453.0,265.1 454.5,265.4 456.0,265.9 457.5,266.0 461.9,266.4 463.4,266.6 464.9,267.1 466.4,267.2 467.9,267.7 472.4,268.0 473.9,268.3 475.4,268.6 476.9,268.9 478.3,268.9 482.8,269.3 484.3,269.7 485.8,269.9 487.3,270.0 488.8,270.3 493.3,270.5 494.8,271.0 496.2,271.2 497.7,271.5 499.2,271.8 503.7,272.2 505.2,272.6 506.7,272.8 508.2,273.1 509.7,273.5 514.2,273.9 515.6,274.0 517.1,274.1 518.6,274.4 520.1,274.7 524.6,275.1 526.1,275.5 527.6,276.1 529.1,276.5 530.6,276.8 535.0,276.9 536.5,277.2 538.0,277.5 539.5,277.7 545.5,278.3 547.0,278.6 550.0,278.9 551.4,279.2 555.9,279.4 557.4,279.8 558.9,280.2 560.4,280.4 561.9,281.0 566.4,281.2 567.9,281.5 569.3,282.0 570.8,282.4 572.3,282.6 576.8,282.8 578.3,283.2 579.8,283.7 581.3,283.5 582.8,283.6 587.2,283.7 588.7,284.2 590.2,284.2 591.7,284.2 593.2,284.3 597.7,284.8 602.2,284.9 603.7,285.1 608.1,285.3 608.1,210.0" fill="#c0392b" opacity=".10"/><polyline points="64.0,210.0 66.6,210.4 68.1,210.7 69.6,211.3 71.1,211.6 75.6,211.8 77.1,212.2 78.5,212.6 80.0,213.0 81.5,213.3 86.0,213.5 87.5,213.9 89.0,214.2 90.5,214.6 92.0,214.8 96.4,215.3 97.9,215.6 99.4,216.1 100.9,216.3 102.4,216.9 106.9,217.2 108.4,217.6 109.9,217.8 111.4,218.0 112.9,218.2 117.3,218.4 118.8,218.7 120.3,219.0 121.8,219.4 123.3,219.7 130.8,219.8 132.2,219.9 133.7,220.2 138.2,220.4 139.7,220.5 141.2,220.7 142.7,221.1 144.2,221.4 148.7,221.7 150.2,221.9 151.6,222.3 153.1,222.7 154.6,223.1 159.1,223.5 160.6,223.8 162.1,224.1 163.6,224.4 165.1,224.7 169.5,225.0 171.0,225.3 172.5,225.6 174.0,225.9 175.5,226.3 180.0,226.7 181.5,226.8 183.0,226.9 184.5,227.4 186.0,227.7 190.4,227.9 191.9,228.2 193.4,228.6 194.9,228.8 200.9,229.3 202.4,229.5 203.9,229.8 205.3,230.3 206.8,230.5 211.3,230.9 212.8,230.9 214.3,231.1 215.8,231.4 217.3,231.8 221.8,232.1 223.2,232.5 224.7,232.7 226.2,233.0 227.7,233.2 232.2,233.5 233.7,233.8 235.2,234.1 236.7,234.4 238.2,234.6 242.6,234.8 244.1,235.3 247.1,235.7 248.6,235.8 253.1,236.1 254.6,236.5 256.1,236.8 257.6,237.0 259.1,237.5 263.5,237.8 265.0,238.1 266.5,238.3 268.0,238.7 269.5,239.1 274.0,239.6 275.5,239.9 277.0,240.3 278.4,240.5 279.9,240.9 284.4,241.1 285.9,241.7 287.4,242.0 290.4,242.3 294.9,242.7 296.3,243.2 297.8,243.5 299.3,243.8 300.8,244.2 305.3,244.4 306.8,244.6 308.3,245.4 309.8,245.9 311.3,246.3 315.7,246.7 317.2,247.0 318.7,247.2 320.2,247.6 321.7,247.9 326.2,248.2 327.7,248.3 329.2,248.6 330.7,248.8 332.2,249.1 336.6,249.4 338.1,249.7 339.6,249.9 341.1,250.1 342.6,250.4 347.1,250.5 348.6,250.8 350.1,251.3 351.5,251.6 353.0,251.8 357.5,252.1 359.0,252.5 360.5,252.8 362.0,253.0 363.5,253.3 368.0,253.6 369.4,254.0 370.9,254.3 372.4,254.6 373.9,254.9 378.4,255.1 379.9,255.2 381.4,255.6 382.9,255.8 384.4,256.1 388.8,256.2 390.3,256.4 391.8,256.7 393.3,256.9 394.8,257.0 399.3,257.2 400.8,257.5 402.3,257.8 403.8,258.1 405.2,258.4 409.7,258.6 411.2,258.9 412.7,259.2 414.2,259.5 415.7,259.9 420.2,260.2 421.7,260.3 423.2,260.7 424.6,260.9 426.1,261.3 430.6,261.6 432.1,262.0 433.6,262.5 435.1,262.6 436.6,263.1 441.1,263.3 442.5,263.8 444.0,263.9 445.5,264.2 447.0,264.6 451.5,264.8 453.0,265.1 454.5,265.4 456.0,265.9 457.5,266.0 461.9,266.4 463.4,266.6 464.9,267.1 466.4,267.2 467.9,267.7 472.4,268.0 473.9,268.3 475.4,268.6 476.9,268.9 478.3,268.9 482.8,269.3 484.3,269.7 485.8,269.9 487.3,270.0 488.8,270.3 493.3,270.5 494.8,271.0 496.2,271.2 497.7,271.5 499.2,271.8 503.7,272.2 505.2,272.6 506.7,272.8 508.2,273.1 509.7,273.5 514.2,273.9 515.6,274.0 517.1,274.1 518.6,274.4 520.1,274.7 524.6,275.1 526.1,275.5 527.6,276.1 529.1,276.5 530.6,276.8 535.0,276.9 536.5,277.2 538.0,277.5 539.5,277.7 545.5,278.3 547.0,278.6 550.0,278.9 551.4,279.2 555.9,279.4 557.4,279.8 558.9,280.2 560.4,280.4 561.9,281.0 566.4,281.2 567.9,281.5 569.3,282.0 570.8,282.4 572.3,282.6 576.8,282.8 578.3,283.2 579.8,283.7 581.3,283.5 582.8,283.6 587.2,283.7 588.7,284.2 590.2,284.2 591.7,284.2 593.2,284.3 597.7,284.8 602.2,284.9 603.7,285.1 608.1,285.3" fill="none" stroke="#c0392b" stroke-width="2.5" stroke-linejoin="round"/><circle cx="608.1" cy="285.3" r="5" fill="#c0392b"/><text x="600.1" y="303.3" text-anchor="end" style="font-family:'IBM Plex Mono',monospace;font-size:13px;fill:#c0392b;font-weight:600">−670 mil pts</text><text x="341.5" y="56.0" text-anchor="start" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#23877a;font-weight:400">re-treino</text><text x="84.9" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">jan</text><text x="131.1" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">fev</text><text x="174.4" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">mar</text><text x="220.6" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">abr</text><text x="265.4" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">mai</text><text x="311.6" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">jun</text><text x="356.4" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">jul</text><text x="402.6" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">ago</text><text x="448.9" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">set</text><text x="493.6" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">out</text><text x="539.9" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">nov</text><text x="584.6" y="318.0" text-anchor="middle" style="font-family:'IBM Plex Mono',monospace;font-size:11px;fill:#6e7884;font-weight:400">dez</text></svg></div>
+      <div style="display:flex; flex-direction:column; gap:18px">
+        <div class="block" style="--c: var(--ml)">
+          <h3>Como ler</h3>
+          <ul><li><b>Operação:</b> compra se a previsão é positiva, vende se é negativa, em todos os 141 mil candles de 2024</li><li><b>Fora da amostra:</b> cada semestre é previsto por um modelo treinado nos 12 meses anteriores, que nunca viu aquele período</li></ul>
+        </div>
+        <p class="choice"><b>Leitura:</b> sem custo a curva sobe, então o sinal é real; com custo, cada operação perde ~4,7 pts. O passo 5 vai operar só as previsões mais fortes.</p>
+        <div class="mstat"><div class="mstat-h">Modelo final · teste 2024 × próprio treino</div><div class="mstat-g"><div><span>ganho bruto / op. · teste</span><b>+0,26 <i>± 0,11</i></b></div><div><span>bruto / op. · treino (2 modelos)</span><b>+0,99 <i>· +0,68</i></b></div><div><span>correlação · teste</span><b>0,024</b></div><div><span>correlação · treino</span><b>0,034</b></div></div><p class="mstat-n">No treino o modelo vê dados que já conhece e ganha mais. A correlação cai de 0,034 para 0,024 fora dele, queda moderada perto da árvore funda (0,082 → 0,019).</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Janela 12 meses · re-treino semestral · 50 árvores · prof. 2 · folha 10% · teste 2024</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= IV.5 PRÓXIMO PASSO DA FRENTE ======================= -->
+<section class="slide" data-title="IV.5 · próximo passo">
+  <div class="rail" style="--c: var(--ml)"><span class="num">IV.5</span><span class="bar"></span><span class="lbl">Próximo passo</span></div>
+  <div class="kicker" style="--c: var(--ml)">IV.5 · Random Forest · próximo passo</div>
+  <h1>Do sinal à operação: <em>regras de compra e venda</em>, validação única e comparação com as outras frentes</h1>
+  <div class="body" style="top:230px">
+    <div class="cols c3" style="height:auto">
+      <div class="block" style="--c: var(--ml)">
+        <span class="tag t-run">em desenvolvimento</span>
+        <h3>1 · Critérios de compra e venda</h3>
+        <ul>
+          <li><b>Entrada:</b> só as previsões mais fortes, não todo candle</li>
+          <li><b>Lado:</b> compra e venda, só compra ou só venda</li>
+          <li><b>Saída:</b> alvo (take profit) e stop loss em múltiplos da volatilidade, ou no candle seguinte</li>
+          <li><b>Critério:</b> pontos por operação depois do custo, em 2024</li>
+        </ul>
+      </div>
+      <div class="block">
+        <span class="tag t-todo">a fazer</span>
+        <h3>2 · Validação</h3>
+        <ul>
+          <li>Modelo e regras congelados</li>
+          <li>Rodada uma única vez em 01/2025 → 03/2026, dados nunca usados</li>
+          <li>Custos de 2,5, 5 e 7,5 pts por operação</li>
+        </ul>
+      </div>
+      <div class="block">
+        <span class="tag t-todo">a fazer</span>
+        <h3>3 · Comparação com os outros modelos</h3>
+        <ul>
+          <li>ARIMAX e a melhor rede neural (MLP), com as mesmas regras</li>
+          <li>Mesma régua: pontos por operação, custo de equilíbrio, nº de operações</li>
+          <li>Contra sorteios aleatórios de direção nos mesmos candles</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout" style="--c: var(--ml); margin-top:28px">As alternativas anotadas no caminho, a folha de 5% e o re-treino trimestral, também passam pelas regras. Lá, o ganho depois do custo decide.</div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN · Random Forest</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= 1. MODELOS ======================= -->
+<section class="slide" data-title="Redes neurais · modelos">
+  <div class="rail" style="--c: var(--nn)"><span class="num">V</span><span class="bar"></span><span class="lbl">Redes neurais</span></div>
+  <div class="kicker" style="--c: var(--nn)">V · Frente de redes neurais · Gabriel Modesto</div>
+  <h1>Redes neurais no WIN: o <em style="color:var(--nn)">cenário mais favorável</em> que encontramos</h1>
+  <p class="lead">Mesmo alvo, protocolo e custo (5 pts) das outras frentes. Só dados do WIN, sem o dólar.</p>
+  <div class="body" style="top: 300px">
+    <div class="cols c3">
+      <div class="block" style="--c: var(--nn)">
+        <span class="tag t-done">modelos</span>
+        <h3>MLP, GRU e LSTM</h3>
+        <ul>
+          <li>MLP: rede densa com 16 variáveis do candle</li>
+          <li>GRU e LSTM: leem os últimos 10 retornos como sequência</li>
+        </ul>
+      </div>
+      <div class="block" style="--c: var(--nn)">
+        <span class="tag t-done">melhor configuração</span>
+        <h3>MLP · 60 min · janela de 1 mês</h3>
+        <ul>
+          <li>Opera em todo candle, sem alvo nem stop</li>
+          <li>Re-treino a cada trimestre</li>
+        </ul>
+      </div>
+      <div class="block">
+        <span class="tag t-todo">onde foi testado</span>
+        <h3>Três períodos</h3>
+        <ul>
+          <li>Seleção em 2024</li>
+          <li>Validação 01/2025–03/2026</li>
+          <li>Período novo 04–09/2026</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN · redes neurais</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= 2. 2025–26 ======================= -->
+<section class="slide" data-title="V.1 · melhor caso 2025–26">
+  <div class="rail" style="--c: var(--nn)"><span class="num">V.1</span><span class="bar"></span><span class="lbl">Melhor caso</span></div>
+  <div class="kicker" style="--c: var(--nn)">V.1 · MLP 60 min × 1 mês · 01/2025 → 03/2026</div>
+  <h1>Em 2025–26, a melhor configuração ganhou <em style="color:var(--good)">+11,9 pontos por operação</em> depois do custo</h1>
+  <div class="body">
+    <div class="cols c64">
+      <div>
+        <table>
+          <tr><th>Trimestre</th><th class="n">1T25</th><th class="n">2T25</th><th class="n">3T25</th><th class="n">4T25</th><th class="n">1T26</th></tr>
+          <tr><td>Pts por operação</td><td class="n pos">+3</td><td class="n pos">+37</td><td class="n pos">+16</td><td class="n pos">+23</td><td class="n neg">−21</td></tr>
+        </table>
+        <table style="margin-top:24px">
+          <tr><th>Indicador</th><th class="n">Valor</th></tr>
+          <tr class="hl" style="--c: var(--nn)"><td><b>Resultado acumulado</b> (1 contrato, custo 5 pts)</td><td class="n pos">+R$ 6.665</td></tr>
+          <tr><td>Operações</td><td class="n">2.791</td></tr>
+          <tr><td>Contra 2.000 sorteios de direção nos mesmos candles</td><td class="n pos">percentil 98%</td></tr>
+        </table>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:20px">
+        <div><div class="big" style="--c: var(--good)">+11,9<small>pts / operação</small></div><p class="note" style="margin-top:8px">custo de 5 pts · positivo em 4 de 5 trimestres</p></div>
+        <div class="callout" style="--c: var(--nn)">Ganhou de 98% das estratégias aleatórias nos mesmos candles.</div>
+        <p class="note">Ressalva: t = 1,43 (abaixo de 2). Ficar sempre comprado rendeu +11,5 no mesmo período. O modelo oficial da frente (LSTM) teve −20,4.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Validação 01/2025 → 03/2026 · custo de 5 pts</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= 3. PERÍODO NOVO: RESILIÊNCIA ======================= -->
+<section class="slide" data-title="V.2 · período novo">
+  <div class="rail" style="--c: var(--nn)"><span class="num">V.2</span><span class="bar"></span><span class="lbl">Período novo</span></div>
+  <div class="kicker" style="--c: var(--nn)">V.2 · Mesmo modelo em 04 → 09/2026 · dados nunca vistos · índice em queda</div>
+  <h1>Num mercado em queda, o modelo <em style="color:var(--good)">preservou o capital</em>: −1,8 contra −21,7 de quem ficou comprado</h1>
+  <div class="body">
+    <div class="cols c64">
+      <div>
+        <div style="font-size:12.5px; color:var(--muted); margin-bottom:12px" class="mono">resultado acumulado em 04–09/2026 · 1 contrato · custo 5 pts</div>
+        <!-- escala: -5000 .. 0 → 0..100% ; zero em 100% -->
+        <div class="hbars" style="gap:18px">
+          <div class="hrow" style="grid-template-columns: 200px 1fr 110px"><span class="lab" style="color:var(--nn)">MLP · melhor caso</span><div class="track"><div class="fill" style="left:91.9%; width:8.1%; background:var(--nn)"></div></div><span class="val" style="color:var(--nn)">−R$ 403</span></div>
+          <div class="hrow" style="grid-template-columns: 200px 1fr 110px"><span class="lab">sempre comprado</span><div class="track"><div class="fill" style="left:4.4%; width:95.6%; background:var(--bad)"></div></div><span class="val neg">−R$ 4.781</span></div>
+        </div>
+        <table style="margin-top:28px">
+          <tr><th>Custo por operação</th><th class="n">0</th><th class="n">2,5</th><th class="n">5</th><th class="n">7,5</th></tr>
+          <tr><td>Pts por operação</td><td class="n pos">+3,2</td><td class="n pos">+0,7</td><td class="n neg">−1,8</td><td class="n neg">−4,3</td></tr>
+        </table>
+        <p class="note" style="margin-top:12px">Com execução otimista (só as taxas da B3, 2,5 pts), o resultado fica positivo.</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:20px">
+        <div><div class="big" style="--c: var(--nn)">92%<small>menos perda</small></div><p class="note" style="margin-top:8px">R$ 403 contra R$ 4.781 de ficar comprado</p></div>
+        <div class="callout" style="--c: var(--nn)">O ganho bruto antes do custo segue positivo (+3,2 pts) em dados que o modelo nunca viu.</div>
+        <p class="note">Ressalva: nenhum valor é estatisticamente diferente de zero (t = −0,11 com custo de 5 pts).</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Período novo · 1.104 candles de 60 min · hipótese registrada antes de rodar</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= 4. MELHOR SEMENTE ======================= -->
+<section class="slide" data-title="V.3 · potencial">
+  <div class="rail" style="--c: var(--nn)"><span class="num">V.3</span><span class="bar"></span><span class="lbl">Potencial</span></div>
+  <div class="kicker" style="--c: var(--nn)">V.3 · Teto do modelo · 20 inicializações no período novo</div>
+  <h1>A melhor inicialização da rede chegou a <em style="color:var(--good)">+23,5 pontos por operação</em> em dados novos</h1>
+  <div class="body">
+    <div class="cols c64">
+      <div>
+        <table>
+          <tr><th>Resultado no período novo · custo 5 pts</th><th class="n">Pts por operação</th><th class="n">t</th></tr>
+          <tr class="hl" style="--c: var(--nn)"><td><b>Melhor inicialização</b></td><td class="n pos">+23,5</td><td class="n">1,5</td></tr>
+          <tr><td>2ª melhor</td><td class="n pos">+10,1</td><td class="n">0,6</td></tr>
+          <tr><td>3ª melhor</td><td class="n pos">+6,7</td><td class="n">0,4</td></tr>
+          <tr><td>Média das 20 inicializações combinadas</td><td class="n neg">−3,6</td><td class="n">−0,2</td></tr>
+        </table>
+        <p class="note" style="margin-top:12px">Inicialização (semente) = o sorteio dos pesos de partida da rede. Mesmo modelo, mesmos dados.</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:20px">
+        <div><div class="big" style="--c: var(--good)">5<small>de 20 positivas</small></div><p class="note" style="margin-top:8px">a rede tem configurações que lucram no período novo</p></div>
+        <div class="callout" style="--c: var(--nn)">O desafio é saber <b>de antemão</b> qual inicialização vai funcionar: escolhê-la depois de ver o resultado não vale.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Período novo 04–09/2026 · MLP 60 min × 1 mês · custo de 5 pts</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= 5. CONCLUSÃO ======================= -->
+<section class="slide" data-title="V · conclusão">
+  <div class="rail" style="--c: var(--nn)"><span class="num">V</span><span class="bar"></span><span class="lbl">Conclusão</span></div>
+  <div class="kicker" style="--c: var(--nn)">V · Conclusão da frente de redes neurais</div>
+  <h1>Sinal promissor, <em style="color:var(--nn)">ainda sem confirmação estatística</em></h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="block" style="--c: var(--good)">
+        <span class="tag t-done">o que funcionou</span>
+        <h3>Resultado favorável</h3>
+        <p>+11,9 pts por operação em 2025–26 e perda 92% menor que ficar comprado na queda de 2026.</p>
+      </div>
+      <div class="block" style="--c: var(--ml)">
+        <span class="tag t-run">o que falta</span>
+        <h3>Significância</h3>
+        <p>Nenhum resultado chega a t ≥ 2, e ele varia com a inicialização da rede. Ainda não dá para chamar de estratégia.</p>
+      </div>
+      <div class="block">
+        <span class="tag t-todo">próximos passos</span>
+        <h3>Para confirmar</h3>
+        <p>Dados depois de 09/2026, execução com custo baixo (2,5 pts) e escolha da inicialização feita só com dados de treino.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN · redes neurais</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= FECHAMENTO ======================= -->
+<section class="slide" data-title="Onde estamos">
+  <div class="rail"><span class="num">·</span><span class="bar"></span><span class="lbl">Onde estamos</span></div>
+  <div class="kicker">Onde estamos</div>
+  <h1>Há sinal, mas <em>nenhum modelo ainda paga o custo</em> com significância estatística</h1>
+  <div class="body">
+    <div class="cols c3">
+      <div class="block" style="--c: var(--arima)">
+        <span class="tag t-done">concluída</span>
+        <h3>ARIMA</h3>
+        <p>Não supera prever retorno zero. Na validação, −41 pts por operação, igual ao acaso.</p>
+      </div>
+      <div class="block" style="--c: var(--ml)">
+        <span class="tag t-run">passos 1–4 de 6</span>
+        <h3>Random Forest</h3>
+        <p>1 min, 21 features, janela de 12 meses com re-treino semestral, 50 árvores rasas. Sinal positivo nos 12 meses de 2024, ainda abaixo do custo. Próximo: regras de compra e venda.</p>
+      </div>
+      <div class="block" style="--c: var(--nn)">
+        <span class="tag t-run">melhor caso avaliado</span>
+        <h3>Redes neurais</h3>
+        <p>MLP de 60 min: +11,9 pts por operação depois do custo em 2025–26, mas t = 1,43 e resultado que muda com a inicialização.</p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= VI. PRÓXIMOS PASSOS ======================= -->
+<section class="slide" data-title="Próximos passos">
+  <div class="rail"><span class="num">VI</span><span class="bar"></span><span class="lbl">Próximos passos</span></div>
+  <div class="kicker">VI · Próximos passos · regras de compra e venda</div>
+  <h1>Consolidar <em>quando entrar e como sair</em>, com alvo e stop, e comparar todos os modelos com a mesma régua</h1>
+  <div class="body" style="top:200px">
+    <div class="cols" style="grid-template-columns:1.45fr 1fr; gap:40px">
+      <div>
+        <table>
+          <tr><th>Regra</th><th>Opções a testar</th><th>Análise que orienta</th></tr>
+          <tr><td><b>Entrada</b></td><td>só as previsões mais fortes: percentil 50, 70 ou 90 de |previsão|, ou previsão em pontos maior que o custo</td><td>ganho do próximo candle por decil da previsão</td></tr>
+          <tr><td><b>Lado</b></td><td>compra e venda, só compra ou só venda</td><td>decis do lado positivo × negativo</td></tr>
+          <tr class="hl"><td><b>Alvo (take profit)</b></td><td>1× ou 1,5× a volatilidade recente</td><td rowspan="2" style="vertical-align:middle">quanto o preço anda a favor e contra depois do sinal (MFE/MAE)</td></tr>
+          <tr class="hl"><td><b>Stop loss</b></td><td>1× ou 1,5× a volatilidade recente</td></tr>
+          <tr><td><b>Saída sem alvo nem stop</b></td><td>fechamento do próximo candle ou depois de k candles</td><td>ganho acumulado por nº de candles</td></tr>
+          <tr><td><b>Filtros</b></td><td>sem filtro, só horários bons ou só volatilidade alta</td><td>ganho por hora e por faixa de volatilidade</td></tr>
+        </table>
+        <p class="note" style="margin-top:10px">Escolha pelo ganho por operação ± erro-padrão, com pelo menos ~100 operações em 2024. Poucas opções e nº de combinações registrado, porque este é o passo mais fácil de sobreajustar.</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:16px">
+        <div class="block" style="--c: var(--ml)">
+          <h3>1 · Rodar as regras em cada modelo</h3>
+          <p>RF final, RF com folha de 5%, RF com re-treino trimestral, MLP de 60 min e ARIMAX: as mesmas opções e o mesmo critério para todos.</p>
+        </div>
+        <div class="block" style="--c: var(--ml)">
+          <h3>2 · Comparar com uma régua só</h3>
+          <p>Pontos por operação depois do custo, custo de equilíbrio, nº de operações e percentil contra sorteios de direção nos mesmos candles.</p>
+        </div>
+        <div class="block" style="--c: var(--ml)">
+          <h3>3 · Congelar e validar uma vez</h3>
+          <p>O vencedor roda uma única vez em 01/2025 → 03/2026, com custos de 2,5, 5 e 7,5 pts.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN · próximos passos</span><span class="pg"></span></div>
+</section>
+
+<!-- ======================= PERGUNTAS ======================= -->
+<section class="slide" data-title="Perguntas">
+  <div class="rail"><span class="num">·</span><span class="bar"></span><span class="lbl">Perguntas</span></div>
+  <div class="inner" style="position:absolute; left:112px; right:80px; top:260px">
+    <div class="kicker">Previsão T+1 do WIN</div>
+    <h1 style="font-size:58px">Perguntas?</h1>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN</span><span class="pg"></span></div>
+</section>
+
+</div>
+
+<div id="nav"><button id="prev" aria-label="Anterior">‹</button><span id="count"></span><button id="next" aria-label="Próximo">›</button></div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  slides.forEach(function (s, i) {
+    var pg = s.querySelector('.pg');
+    if (pg) pg.textContent = (i + 1) + ' / ' + total;
+  });
+  var cur = 0;
+  function fit() {
+    var k = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+    slides.forEach(function (s) { s.style.transform = 'scale(' + k + ')'; });
+  }
+  function show(i) {
+    cur = Math.max(0, Math.min(total - 1, i));
+    slides.forEach(function (s, j) { s.classList.toggle('active', j === cur); });
+    document.getElementById('count').textContent = (cur + 1) + ' / ' + total;
+    try { history.replaceState(null, '', '#' + (cur + 1)); } catch (e) {}
+  }
+  document.addEventListener('keydown', function (e) {
+    if (['ArrowRight', 'PageDown', ' ', 'Enter'].indexOf(e.key) >= 0) { e.preventDefault(); show(cur + 1); }
+    else if (['ArrowLeft', 'PageUp', 'Backspace'].indexOf(e.key) >= 0) { e.preventDefault(); show(cur - 1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(total - 1);
+  });
+  document.getElementById('prev').onclick = function () { show(cur - 1); };
+  document.getElementById('next').onclick = function () { show(cur + 1); };
+  window.addEventListener('resize', fit);
+  fit();
+  var h = parseInt((location.hash || '').slice(1), 10);
+  show(isNaN(h) ? 0 : h - 1);
+})();
+</script>
+</body>
+</html>

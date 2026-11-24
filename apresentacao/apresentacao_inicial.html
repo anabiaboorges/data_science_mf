@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Previsão do candle T+1 — apresentação inicial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --ink:#14211F; --ink2:#1D2F2C; --paper:#EDF0EB; --card:#F8FAF6; --line:#C8D1CB;
+  --text:#1B2826; --muted:#56665F; --green:#0F7A60; --green-l:#D3E8DE; --rust:#B4452D; --rust-l:#F1DDD4;
+  --amber:#B97D0C; --amber-l:#F3E6C8; --on-ink:#E8EEEA; --on-ink-muted:#9DB2AB;
+  --sans:'IBM Plex Sans', Arial, sans-serif; --mono:'IBM Plex Mono', 'Courier New', monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#0B1312;font-family:var(--sans);color:var(--text)}
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#deck{width:1920px;height:1080px;position:relative;transform-origin:center center;flex:none}
+.slide{position:absolute;inset:0;background:var(--paper);padding:104px 128px 150px;display:none;flex-direction:column}
+.slide.active{display:flex}
+.slide.dark{background:var(--ink);color:var(--on-ink)}
+
+/* topo: código da seção + trilha I–V */
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px}
+.tag{font-family:var(--mono);font-size:24px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--green)}
+.dark .tag{color:#5CC9A7}
+.track{display:flex;gap:6px;font-family:var(--mono);font-size:22px}
+.track span{padding:4px 12px;border:1.5px solid var(--line);color:var(--muted)}
+.track span.on{background:var(--ink);border-color:var(--ink);color:var(--on-ink)}
+.dark .track span{border-color:#36504B;color:var(--on-ink-muted)}
+.dark .track span.on{background:#5CC9A7;border-color:#5CC9A7;color:var(--ink)}
+h1{font-size:96px;line-height:1.04;font-weight:700;letter-spacing:-.02em}
+h2{font-size:58px;line-height:1.1;font-weight:600;letter-spacing:-.01em;max-width:1500px}
+h3{font-size:32px;font-weight:600;line-height:1.2}
+p,li{font-size:28px;line-height:1.42}
+.muted{color:var(--muted)} .dark .muted{color:var(--on-ink-muted)}
+.mono{font-family:var(--mono)}
+.foot{position:absolute;left:128px;right:128px;bottom:56px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:22px;color:var(--muted);border-top:1.5px solid var(--line);padding-top:16px}
+.dark .foot{color:var(--on-ink-muted);border-color:#2E4541}
+.body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:40px;margin-top:36px}
+.row{display:flex;gap:40px}
+.col{flex:1;display:flex;flex-direction:column;gap:18px}
+.box{background:var(--card);border:1.5px solid var(--line);padding:32px 36px}
+.label{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.big{font-family:var(--mono);font-size:84px;font-weight:600;line-height:1;letter-spacing:-.03em}
+.pos{color:var(--green)} .neg{color:var(--rust)} .amb{color:var(--amber)}
+ul.clean{list-style:none;display:flex;flex-direction:column;gap:14px}
+ul.clean li{padding-left:34px;position:relative}
+ul.clean li::before{content:"";position:absolute;left:0;top:17px;width:14px;height:14px;background:var(--green)}
+.note{font-size:26px;color:var(--muted)}
+.callout{background:var(--ink);color:var(--on-ink);padding:28px 36px;font-size:30px;line-height:1.4}
+.callout b{color:#7FE0C0}
+.pill{display:inline-block;font-family:var(--mono);font-size:22px;font-weight:600;padding:6px 14px;letter-spacing:.04em}
+.pill.done{background:var(--green-l);color:#0B5A47}
+.pill.todo{background:#E2E6E2;color:#4A5853}
+.pill.now{background:var(--amber-l);color:#7A5208}
+
+/* tabelas */
+table{border-collapse:collapse;width:100%;font-size:27px}
+th{font-family:var(--mono);font-size:21px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;padding:12px 16px;border-bottom:2px solid var(--ink)}
+td{padding:14px 16px;border-bottom:1.5px solid var(--line);vertical-align:middle}
+td.num,th.num{text-align:right;font-family:var(--mono)}
+table.tight td{padding:10px 16px}
+tr.hl td{background:var(--green-l)}
+
+/* capa */
+.cover{background:var(--ink);color:var(--on-ink);padding:128px}
+.cover .grid{position:absolute;inset:0;background-image:linear-gradient(#ffffff08 1.5px,transparent 1.5px),linear-gradient(90deg,#ffffff08 1.5px,transparent 1.5px);background-size:96px 96px}
+.cover .candles{position:absolute;right:128px;top:96px;width:440px;height:369px}
+.cover .content{position:relative;display:flex;flex-direction:column;height:100%;justify-content:space-between}
+
+/* divisória de seção */
+.divider .roman{font-family:var(--mono);font-size:260px;font-weight:600;line-height:1;color:#5CC9A7;letter-spacing:-.04em}
+
+/* linha do tempo */
+.tl{position:relative;height:150px;margin-top:20px}
+.tl .seg{position:absolute;top:56px;height:64px;display:flex;align-items:center;padding-left:18px;font-family:var(--mono);font-size:22px;font-weight:600}
+.tl .tick{position:absolute;top:0;font-family:var(--mono);font-size:22px;color:var(--muted)}
+.tl .tick::after{content:"";position:absolute;left:0;top:34px;width:1.5px;height:92px;background:var(--line)}
+.hatch{position:absolute;top:56px;height:64px;background:repeating-linear-gradient(135deg,#EDF0EB 0 8px,#C8D1CB 8px 12px)}
+
+/* barras horizontais */
+.hbar{height:30px;background:var(--green)}
+.hbar.light{background:#9CC7B6}
+.barrow{display:grid;align-items:center;gap:20px}
+
+/* roteiro do RF */
+.steps{display:grid;grid-template-columns:repeat(6,1fr);gap:0}
+.step{border:1.5px solid var(--line);border-left:none;padding:28px 24px;background:var(--card);display:flex;flex-direction:column;gap:14px;min-height:300px}
+.step:first-child{border-left:1.5px solid var(--line)}
+.step .n{font-family:var(--mono);font-size:56px;font-weight:600;color:var(--muted);line-height:1}
+.step.done{background:var(--green-l)} .step.done .n{color:var(--green)}
+.step h3{font-size:30px}
+.step .pill{margin-top:auto;align-self:flex-start}
+.step.done .pill{background:var(--green);color:#F3FBF7}
+.step p{font-size:24px;line-height:1.35;color:var(--muted)}
+
+/* funil */
+.funnel{display:flex;flex-direction:column;gap:12px}
+.fstage{display:flex;align-items:center;gap:22px}
+.fbar{height:64px;background:var(--ink);color:var(--on-ink);display:flex;align-items:center;padding:0 20px;font-family:var(--mono);font-size:34px;font-weight:600}
+.fstage p{font-size:25px;line-height:1.3}
+
+/* navegação */
+#hud{position:fixed;right:18px;bottom:14px;font-family:var(--mono);font-size:13px;color:#7F948E;user-select:none}
+@media print{
+  @page{size:1920px 1080px;margin:0}
+  html,body{background:none}
+  #stage{position:static;display:block}
+  #deck{transform:none!important;width:1920px;height:auto}
+  .slide{display:flex!important;position:relative;width:1920px;height:1080px;page-break-after:always;break-after:page;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #hud{display:none}
+}
+</style>
+</head>
+<body>
+<div id="stage"><div id="deck">
+
+<!-- ============ 1. CAPA ============ -->
+<section class="slide cover active" data-sec="0">
+  <div class="grid"></div>
+  <svg class="candles" viewBox="0 0 620 520" aria-label="Candles ilustrativos, o último pontilhado representando o candle a prever">
+    <g stroke-width="3">
+      <line x1="40" y1="250" x2="40" y2="400" stroke="#5CC9A7"/><rect x="22" y="290" width="36" height="80" fill="#5CC9A7"/>
+      <line x1="110" y1="200" x2="110" y2="330" stroke="#5CC9A7"/><rect x="92" y="220" width="36" height="80" fill="#5CC9A7"/>
+      <line x1="180" y1="180" x2="180" y2="330" stroke="#E07A5F"/><rect x="162" y="210" width="36" height="96" fill="#E07A5F"/>
+      <line x1="250" y1="230" x2="250" y2="360" stroke="#E07A5F"/><rect x="232" y="260" width="36" height="70" fill="#E07A5F"/>
+      <line x1="320" y1="160" x2="320" y2="320" stroke="#5CC9A7"/><rect x="302" y="190" width="36" height="110" fill="#5CC9A7"/>
+      <line x1="390" y1="120" x2="390" y2="260" stroke="#5CC9A7"/><rect x="372" y="150" width="36" height="80" fill="#5CC9A7"/>
+      <line x1="460" y1="130" x2="460" y2="250" stroke="#E07A5F"/><rect x="442" y="150" width="36" height="60" fill="#E07A5F"/>
+      <line x1="560" y1="60" x2="560" y2="320" stroke="#E8EEEA" stroke-dasharray="8 8"/>
+      <rect x="540" y="120" width="40" height="140" fill="none" stroke="#E8EEEA" stroke-dasharray="8 8"/>
+    </g>
+  </svg>
+  <div class="content">
+    <div class="tag">Data Science para Mercado Financeiro · UFG</div>
+    <div>
+      <h1>Comparativo de modelos<br>preditivos para o retorno<br>do candle T+1</h1>
+      <p style="font-size:36px;margin-top:32px;color:var(--on-ink-muted)">Estatística, machine learning e redes neurais no minicontrato de Ibovespa (WIN)</p>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end">
+      <p style="font-size:30px">[Nomes do grupo]</p>
+      <p class="mono" style="font-size:26px;color:var(--on-ink-muted)">Apresentação inicial · Novembro de 2026</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2. I · OBJETIVO ============ -->
+<section class="slide" data-sec="1">
+  <div class="top"><div class="tag">I · Objetivo</div><div class="track"><span class="on">I</span><span>II</span><span>III</span><span>IV</span><span>V</span></div></div>
+  <h2>Prever o retorno do próximo candle do WIN e descobrir se a previsão dá lucro depois do custo</h2>
+  <div class="body">
+    <div class="row">
+      <div class="box col">
+        <div class="label">Frente 1 · Estatística</div>
+        <h3>Família ARIMA</h3>
+        <p class="muted">A previsão combina o último retorno e o último erro. Variantes com o dólar (WDO) e com o mesmo horário do pregão anterior.</p>
+      </div>
+      <div class="box col" style="background:var(--green-l);border-color:#A9CFBF">
+        <div class="label" style="color:#0B5A47">Frente 2 · Machine learning</div>
+        <h3>Random Forest</h3>
+        <p style="color:#2D4A42">Muitas árvores de decisão rasas votando juntas. Capta relações não lineares e condicionais entre as features.</p>
+      </div>
+      <div class="box col">
+        <div class="label">Frente 3 · Redes neurais</div>
+        <h3>LSTM e MLP</h3>
+        <p class="muted">Rede que lê a sequência dos últimos candles e aprende sozinha que padrões usar.</p>
+      </div>
+    </div>
+    <div class="callout">As três frentes usam <b>os mesmos dados, as mesmas datas, o mesmo custo e o mesmo critério</b>. Assim, uma diferença de resultado só pode vir do modelo.</div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 3. II · DIVISÃO DO TEMPO ============ -->
+<section class="slide" data-sec="2">
+  <div class="top"><div class="tag">II · Protocolo comum · Datas</div><div class="track"><span>I</span><span class="on">II</span><span>III</span><span>IV</span><span>V</span></div></div>
+  <h2>Toda escolha é feita até 2024; o período de validação roda uma única vez</h2>
+  <div class="body" style="gap:28px">
+    <div class="tl">
+      <div class="tick" style="left:3.8%">2021</div>
+      <div class="tick" style="left:22.1%">2022</div>
+      <div class="tick" style="left:40.5%">2023</div>
+      <div class="tick" style="left:58.8%">2024</div>
+      <div class="tick" style="left:77.1%">2025</div>
+      <div class="tick" style="left:95.4%">2026</div>
+      <div class="seg" style="left:0;width:58.8%;background:#D9E1DC;color:var(--ink)">TREINO E ANÁLISE</div>
+      <div class="hatch" style="left:48.1%;width:7.6%"></div>
+      <div class="seg" style="left:58.8%;width:18.3%;background:var(--ink);color:var(--on-ink)">SELEÇÃO</div>
+      <div class="seg" style="left:77.1%;width:22.9%;background:var(--green);color:#F3FBF7">VALIDAÇÃO</div>
+    </div>
+    <div class="row" style="gap:0">
+      <div class="col" style="flex:0 0 58.8%;padding-right:40px">
+        <p class="mono" style="font-size:24px">15/10/2020 → 31/12/2023</p>
+        <p>Análise dos dados sem modelo e janelas de treino. Nenhuma métrica de modelo é olhada aqui.</p>
+        <p class="note">Hachurado: buraco na base, jun–out/2023.</p>
+      </div>
+      <div class="col" style="flex:0 0 18.3%;padding-right:28px">
+        <p class="mono" style="font-size:24px">2024</p>
+        <p>Escolhas de cada frente, re-treinando ao longo do ano.</p>
+      </div>
+      <div class="col" style="flex:0 0 22.9%">
+        <p class="mono" style="font-size:24px">01/2025 → 03/2026</p>
+        <p>Modelo congelado, rodado <b>uma vez</b>. Daqui sai o resultado financeiro.</p>
+      </div>
+    </div>
+    <div class="box" style="display:flex;gap:56px;align-items:center;padding:26px 36px">
+      <div class="label" style="flex:none">Walk-forward</div>
+      <p>Cada período é previsto por um modelo treinado só com os meses anteriores a ele. Nunca se usa informação depois do candle atual.</p>
+    </div>
+  </div>
+  <div class="foot"><span>WIN$N · candles de 1 min · 15/10/2020 → 31/03/2026</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 4. II · CUSTO ============ -->
+<section class="slide" data-sec="2">
+  <div class="top"><div class="tag">II · Protocolo comum · Custo</div><div class="track"><span>I</span><span class="on">II</span><span>III</span><span>IV</span><span>V</span></div></div>
+  <h2>Cada operação paga 5 pontos: taxas da B3 mais meio tick de spread</h2>
+  <div class="body">
+    <div class="row" style="align-items:stretch">
+      <div class="col" style="flex:1.15;gap:22px">
+        <div class="label">Custo por operação completa</div>
+        <div style="position:relative">
+        <div class="barrow" style="grid-template-columns:230px 1fr">
+          <div><h3 style="font-size:28px">Adotado</h3><p class="note" style="font-size:22px">taxas + meio spread</p></div>
+          <div style="position:relative;height:56px">
+            <div style="position:absolute;left:0;top:8px;width:100px;height:40px;background:#B9CFC6"></div>
+            <div style="position:absolute;left:100px;top:8px;width:100px;height:40px;background:var(--ink)"></div>
+            <span class="mono" style="position:absolute;left:216px;top:12px;font-size:26px;font-weight:600">5 pts</span>
+          </div>
+        </div></div>
+        <div style="position:relative;height:40px">
+          <div style="position:absolute;left:0;top:0;display:flex;gap:30px;font-size:22px;white-space:nowrap" class="mono">
+            <span><span style="display:inline-block;width:18px;height:18px;background:#B9CFC6;vertical-align:-2px"></span> taxas B3</span>
+            <span><span style="display:inline-block;width:18px;height:18px;background:var(--ink);vertical-align:-2px"></span> meio spread</span>
+          </div>
+        </div>
+      </div>
+      <div class="col box" style="flex:0.85;gap:20px">
+        <div class="label">Por que 5 pontos</div>
+        <ul class="clean">
+          <li><b>2,5 pts</b> de taxas da B3 no day trade, cerca de R$ 0,50; corretagem zero</li>
+          <li><b>+2,5 pts</b>: meio tick de spread, pago ao sair a mercado (entrada com ordem limitada)</li>
+          <li>Total de <b>R$ 1,00</b> por operação por minicontrato</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note">1 ponto = R$ 0,20 por minicontrato. Imposto (20% do lucro mensal) não entra: não é custo por operação. O relatório final mostra o <b>custo de equilíbrio</b>, o maior custo que a estratégia aguenta sem perder dinheiro.</p>
+  </div>
+  <div class="foot"><span>Taxas da B3 e corretoras</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 5. II · CRITÉRIO ============ -->
+<section class="slide" data-sec="2">
+  <div class="top"><div class="tag">II · Protocolo comum · Critério</div><div class="track"><span>I</span><span class="on">II</span><span>III</span><span>IV</span><span>V</span></div></div>
+  <h2>Vence a frente com maior retorno financeiro no período de validação, já descontado o custo</h2>
+  <div class="body">
+    <div class="row">
+      <div class="box col"><div class="label">1 · Resultado acumulado</div><p>Soma dos pontos e dos reais de 01/2025 a 03/2026, por minicontrato.</p></div>
+      <div class="box col"><div class="label">2 · Esperança por operação</div><p>Ganho médio por operação, sempre com o erro-padrão ao lado.</p></div>
+      <div class="box col"><div class="label">3 · Nº de operações</div><p>Poucas operações deixam o resultado sem confiança.</p></div>
+      <div class="box col"><div class="label">4 · Contra o acaso</div><p>Sinais aleatórios nos mesmos candles, com a mesma regra.</p></div>
+    </div>
+    <div class="row" style="gap:40px;align-items:stretch">
+      <div class="col" style="flex:1.2">
+        <div class="label">Duas réguas</div>
+        <p><b>Não operar</b> rende zero: um modelo só vale se ficar acima disso com folga.</p>
+        <p><b>Sorteio de direção</b> nos mesmos candles: separa habilidade de sorte.</p>
+      </div>
+      <div class="callout" style="flex:1;display:flex;align-items:center"><div>Theil U e correlação ajudam a <b>escolher dentro</b> de cada frente. A comparação <b>entre</b> as frentes é financeira.</div></div>
+    </div>
+  </div>
+  <div class="foot"><span>Critério definido antes de rodar a validação</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 6. III · ARIMA (modelo) ============ -->
+<section class="slide" data-sec="3">
+  <div class="top"><div class="tag">III · Frente estatística · ARIMA</div><div class="track"><span>I</span><span>II</span><span class="on">III</span><span>IV</span><span>V</span></div></div>
+  <h2>O ARIMA prevê a próxima hora combinando o último retorno com o último erro</h2>
+  <div class="body">
+    <div class="row">
+      <div class="col" style="flex:1">
+        <ul class="clean">
+          <li><b>Parte AR:</b> quanto do último retorno continua (momentum) ou volta (reversão)</li>
+          <li><b>Parte MA:</b> correção pela última surpresa</li>
+          <li>Sem memória nos retornos, as duas partes se anulam e a previsão vira zero</li>
+        </ul>
+      </div>
+      <div class="col" style="flex:1.1">
+        <table>
+          <tr><th>Escolha</th><th>Valor</th></tr>
+          <tr><td>Candle</td><td>60 min, entre 1, 15 e 60</td></tr>
+          <tr><td>Janela de treino</td><td>6 meses, entre 1, 3, 6 e 12</td></tr>
+          <tr><td>Re-estimação</td><td>a cada trimestre</td></tr>
+          <tr><td>Variantes</td><td>+ dólar · + sazonal · as duas</td></tr>
+          <tr><td>Escolhida em 2024</td><td>ARIMAX (+ dólar)</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Família ARIMA · candles de 60 min do WIN</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 7. III · ARIMA (resultado) ============ -->
+<section class="slide" data-sec="3">
+  <div class="top"><div class="tag">III · Frente estatística · Resultado</div><div class="track"><span>I</span><span>II</span><span class="on">III</span><span>IV</span><span>V</span></div></div>
+  <h2>Na validação, o ARIMAX perdeu dinheiro e ficou indistinguível de sinais aleatórios</h2>
+  <div class="body">
+    <div class="row">
+      <div class="box col"><div class="big neg">−41</div><p>pontos por operação na validação, ± 42 de erro-padrão</p></div>
+      <div class="box col"><div class="big">214</div><p>operações entre 01/2025 e 03/2026</p></div>
+      <div class="box col"><div class="big">19º</div><p>percentil entre 2.000 sorteios aleatórios nos mesmos candles</p></div>
+    </div>
+    <ul class="clean">
+      <li>Nenhuma variante, candle ou janela errou menos que prever retorno zero</li>
+      <li>Os parâmetros AR e MA se anularam em quase todo trimestre: <b>não há memória na direção</b> para o modelo usar</li>
+      <li>Em 2024 a escolhida rendia +10 ± 19 pts: a vantagem já era menor que o erro</li>
+    </ul>
+  </div>
+  <div class="foot"><span>Validação 01/2025 → 03/2026 · custo de 5 pts</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 8. IV · ROTEIRO RF ============ -->
+<section class="slide" data-sec="4">
+  <div class="top"><div class="tag">IV · Frente machine learning · Random Forest</div><div class="track"><span>I</span><span>II</span><span>III</span><span class="on">IV</span><span>V</span></div></div>
+  <h2>Seis passos, um grupo de decisões por vez, cada um com o critério escrito antes de rodar</h2>
+  <div class="body">
+    <div class="steps">
+      <div class="step done"><div class="n">1</div><h3>Candles</h3><p>horizonte a prever: 1 min</p><span class="pill done">CONCLUÍDO</span></div>
+      <div class="step done"><div class="n">2</div><h3>Features</h3><p>o que o modelo enxerga: as 21 candidatas</p><span class="pill done">CONCLUÍDO</span></div>
+      <div class="step done"><div class="n">3</div><h3>Janela + re-treino</h3><p>12 meses, re-treino semestral</p><span class="pill done">CONCLUÍDO</span></div>
+      <div class="step done"><div class="n">4</div><h3>Hiper&shy;parâmetros</h3><p>50 árvores rasas, folhas de 5%</p><span class="pill now" style="background:var(--amber-l);color:#7A5208">PRELIMINAR</span></div>
+      <div class="step"><div class="n">5</div><h3>Regras</h3><p>quando comprar, vender e sair</p><span class="pill now">PRÓXIMO</span></div>
+      <div class="step"><div class="n">6</div><h3>Validação</h3><p>modelo congelado, uma rodada</p><span class="pill todo">A FAZER</span></div>
+    </div>
+    <p class="muted">A ordem vai do que define o problema ao que só ajusta o resultado. As regras de compra e venda nunca voltam a mudar os passos anteriores. Entre opções empatadas (dentro de 1 erro-padrão), fica a mais simples.</p>
+  </div>
+  <div class="foot"><span>Plano de ação · Random Forest T+1</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 9. IV.1 · CANDLES ============ -->
+<section class="slide" data-sec="4">
+  <div class="top"><div class="tag">IV.1 · Candles</div><div class="track"><span>I</span><span>II</span><span>III</span><span class="on">IV</span><span>V</span></div></div>
+  <h2>Só o candle de 1 min tem sinal consistente, mas ganha 0,37 ponto por operação contra 5 de custo</h2>
+  <div class="body" style="gap:28px">
+    <table>
+      <tr><th style="width:12%">Candle</th><th style="width:38%">Meses de 2024 com correlação positiva</th><th class="num">Correlação</th><th class="num">Confiança (t)</th><th class="num">Ganho bruto / op</th><th class="num">Custo ÷ movimento</th></tr>
+      <tr class="hl"><td class="mono"><b>1 min</b></td><td><div style="display:flex;align-items:center;gap:14px"><div class="hbar" style="width:420px"></div><span class="mono">12/12</span></div></td><td class="num">+0,016</td><td class="num"><b>4,9</b></td><td class="num">+0,37 pt</td><td class="num">12%</td></tr>
+      <tr><td class="mono">5 min</td><td><div style="display:flex;align-items:center;gap:14px"><div class="hbar light" style="width:245px"></div><span class="mono">7/12</span></div></td><td class="num">+0,005</td><td class="num">0,3</td><td class="num">+0,22 pt</td><td class="num">5%</td></tr>
+      <tr><td class="mono">15 min</td><td><div style="display:flex;align-items:center;gap:14px"><div class="hbar light" style="width:175px"></div><span class="mono">5/12</span></div></td><td class="num">+0,005</td><td class="num">−0,3</td><td class="num">−0,73 pt</td><td class="num">3%</td></tr>
+      <tr><td class="mono">30 min</td><td><div style="display:flex;align-items:center;gap:14px"><div class="hbar light" style="width:175px"></div><span class="mono">5/12</span></div></td><td class="num">+0,000</td><td class="num">−0,2</td><td class="num">−2,06 pt</td><td class="num">2%</td></tr>
+      <tr><td class="mono">60 min</td><td><div style="display:flex;align-items:center;gap:14px"><div class="hbar light" style="width:140px"></div><span class="mono">4/12</span></div></td><td class="num">−0,020</td><td class="num">−0,5</td><td class="num">+0,16 pt</td><td class="num">2%</td></tr>
+    </table>
+    <div class="row" style="gap:40px">
+      <p class="note" style="flex:1.3">Mesmo RF em todos (200 árvores, profundidade 5), mesmas 5 features básicas, janela de 12 meses, seleção em 2024. Confiança acima de 2 = fora do ruído, medida entre os meses.</p>
+      <div class="callout" style="flex:1;font-size:27px"><b>Decisão: 1 min.</b> O sinal é real, mas pequeno. Operar todo candle não paga; o passo 5 vai operar só as previsões extremas.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Seleção 2024 · janela 12 meses · re-treino trimestral</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 10. IV.2 · FEATURES ============ -->
+<section class="slide" data-sec="4">
+  <div class="top"><div class="tag">IV.2 · Features</div><div class="track"><span>I</span><span>II</span><span>III</span><span class="on">IV</span><span>V</span></div></div>
+  <h2>Filtrar features piorou o RF: o conjunto completo, com 21 candidatas, teve a maior correlação</h2>
+  <div class="body" style="gap:30px">
+    <div class="row" style="gap:64px;align-items:flex-start">
+      <div class="col" style="flex:0.9;gap:14px">
+        <div class="label">Como filtramos</div>
+        <div class="funnel">
+          <div class="fstage"><div class="fbar" style="width:300px">21</div><p>candidatas em 8 grupos: retornos, posição no dia, volatilidade, forma, volume, gap, dólar</p></div>
+          <div class="fstage"><div class="fbar" style="width:190px">13</div><p>passam na análise de dados até 2023</p></div>
+          <div class="fstage"><div class="fbar" style="width:74px">5</div><p>confirmadas por permutação em 2024</p></div>
+          <div class="fstage"><div class="fbar" style="width:60px">4</div><p>fazem falta quando retiradas</p></div>
+        </div>
+      </div>
+      <div class="col" style="flex:1.1;gap:14px">
+        <div class="label">Correlação com o retorno real · 2024</div>
+        <div class="barrow" style="grid-template-columns:270px 1fr 130px;row-gap:16px">
+          <p style="font-size:25px"><b>Todas · 21</b></p><div class="hbar" style="width:532px"></div><span class="mono" style="font-size:25px"><b>0,023</b></span>
+          <p style="font-size:25px">Básico · 5</p><div class="hbar light" style="width:402px"></div><span class="mono" style="font-size:25px">0,018</span>
+          <p style="font-size:25px">Finais · 4</p><div class="hbar light" style="width:386px"></div><span class="mono" style="font-size:25px">0,017</span>
+          <p style="font-size:25px">Confirmadas · 5</p><div class="hbar light" style="width:347px"></div><span class="mono" style="font-size:25px">0,015</span>
+          <p style="font-size:25px">Pré-selecionadas · 13</p><div class="hbar light" style="width:265px"></div><span class="mono" style="font-size:25px">0,012</span>
+        </div>
+        <p class="note" style="font-size:23px">Média das correlações mensais. Todos positivos nos 12 meses.</p>
+      </div>
+    </div>
+    <div class="row" style="gap:40px;align-items:stretch">
+      <p class="note" style="flex:1.2">As mais fortes sozinhas são os <b>retornos acumulados de 5 e 15 min</b> e a <b>posição do preço na faixa do dia</b>, todas no sentido de reversão e estáveis em 2021, 2022 e 2023. As de volatilidade não dizem a direção, mas o RF usa como contexto.</p>
+      <div class="callout" style="flex:1;font-size:27px"><b>Decisão: as 21.</b> Ganho bruto sobe para 0,43 pt por operação. O custo ainda exige uma correlação quase 5× maior.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Candle de 1 min · janela 12 meses · seleção 2024</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 11. IV.3 · JANELA + RETREINO ============ -->
+<section class="slide" data-sec="4">
+  <div class="top"><div class="tag">IV.3 · Janela + re-treino</div><div class="track"><span>I</span><span>II</span><span>III</span><span class="on">IV</span><span>V</span></div></div>
+  <h2>Doze meses de passado é o ponto certo; refazer o modelo a cada semestre basta</h2>
+  <div class="body" style="gap:30px">
+    <div class="row" style="gap:64px;align-items:flex-start">
+      <div class="col" style="flex:1.05;gap:14px">
+        <div class="label">Janela de treino · re-treino trimestral</div>
+        <div class="barrow" style="grid-template-columns:190px 1fr 250px;row-gap:16px;white-space:nowrap">
+          <p style="font-size:25px">3 meses</p><div class="hbar light" style="width:214px"></div><span class="mono" style="font-size:25px">0,012 · t 2,3</span>
+          <p style="font-size:25px">6 meses</p><div class="hbar light" style="width:322px"></div><span class="mono" style="font-size:25px">0,017 · t 3,3</span>
+          <p style="font-size:25px"><b>12 meses</b></p><div class="hbar" style="width:450px"></div><span class="mono" style="font-size:25px"><b>0,024 · t 6,0</b></span>
+          <p style="font-size:25px">24 meses</p><div class="hbar light" style="width:192px"></div><span class="mono" style="font-size:25px">0,010 · t 2,3</span>
+          <p style="font-size:25px">Todo o histórico</p><div style="height:30px;width:4px;background:var(--rust)"></div><span class="mono neg" style="font-size:25px">−0,006 · t −1,2</span>
+        </div>
+        <p class="note" style="font-size:23px">Correlação média mensal em 2024 e confiança (t). Janela curta tem poucos dados; longa mistura épocas em que as relações eram outras.</p>
+      </div>
+      <div class="col" style="flex:0.95;gap:14px">
+        <div class="label">Re-treino · janela de 12 meses</div>
+        <table style="font-size:25px">
+          <tr><th>Frequência</th><th class="num">Treinos / ano</th><th class="num">Correlação</th><th class="num">t</th></tr>
+          <tr><td>Mensal</td><td class="num">12</td><td class="num">0,024</td><td class="num">5,2</td></tr>
+          <tr><td>Trimestral</td><td class="num">4</td><td class="num">0,024</td><td class="num">6,0</td></tr>
+          <tr class="hl"><td><b>Semestral</b></td><td class="num"><b>2</b></td><td class="num"><b>0,022</b></td><td class="num"><b>4,8</b></td></tr>
+        </table>
+        <p class="note" style="font-size:23px">As três ficam a menos de 1 erro-padrão (0,004) uma da outra: empate.</p>
+      </div>
+    </div>
+    <div class="row" style="gap:40px;align-items:stretch">
+      <p class="note" style="flex:1.2">Ressalva: treinando uma vez e medindo mês a mês até 2023, a correlação <b>cai com a idade do modelo</b> (cerca de 0,002 por mês). É um aviso a favor de re-treinos mais frequentes, que a seleção de 2024 não confirmou.</p>
+      <div class="callout" style="flex:1;font-size:27px"><b>Decisão: 12 meses, semestral.</b> Empatado com o melhor, fica o re-treino menos frequente, mais simples de operar.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Candle de 1 min · 21 features · seleção 2024</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 12. IV.4 · HIPERPARÂMETROS ============ -->
+<section class="slide" data-sec="4">
+  <div class="top"><div class="tag">IV.4 · Hiperparâmetros</div><div class="track"><span>I</span><span>II</span><span>III</span><span class="on">IV</span><span>V</span></div></div>
+  <h2>Para um sinal tão fraco, ganharam as árvores mais rasas e as folhas maiores</h2>
+  <div class="body" style="gap:28px;margin-top:20px">
+    <table class="tight">
+      <tr><th style="width:24%">Hiperparâmetro</th><th style="width:25%">Testado</th><th class="num" style="width:13%">Escolhido</th><th style="padding-left:40px">Por quê</th></tr>
+      <tr><td>Nº de árvores</td><td class="mono">25 → 400</td><td class="num"><b>50</b></td><td style="padding-left:40px">a partir daí a correlação para de mudar</td></tr>
+      <tr><td>Profundidade máxima</td><td class="mono">3 · 5 · 8</td><td class="num"><b>3</b></td><td style="padding-left:40px">empate com 5; fica a mais rasa</td></tr>
+      <tr><td>Mínimo por folha</td><td class="mono">0,5 · 1 · 2 · 5%</td><td class="num"><b>5%</b></td><td style="padding-left:40px">maior correlação e menos sobreajuste</td></tr>
+      <tr><td>Features por divisão</td><td class="mono" style="white-space:nowrap">raiz · metade · todas</td><td class="num"><b>raiz</b></td><td style="padding-left:40px">árvores mais diferentes entre si; correlação 0,026</td></tr>
+    </table>
+    <div class="row" style="gap:32px;align-items:stretch">
+      <div class="box col" style="flex:1;gap:12px">
+        <div class="label">Sobreajuste · treino menos seleção</div>
+        <div class="barrow" style="grid-template-columns:250px 1fr 90px;row-gap:12px">
+          <p style="font-size:24px">Prof. 8 · folha 0,5%</p><div class="hbar" style="width:260px;background:var(--rust)"></div><span class="mono" style="font-size:24px">0,065</span>
+          <p style="font-size:24px"><b>Escolhido</b></p><div class="hbar" style="width:76px"></div><span class="mono" style="font-size:24px"><b>0,019</b></span>
+        </div>
+      </div>
+      <div class="box col" style="flex:1;gap:10px">
+        <div class="label">Os dados já indicavam</div>
+        <p style="font-size:25px">O efeito de cada feature é tão pequeno que só folhas enormes têm média confiável. O RF funciona pela média de muitas folhas.</p>
+      </div>
+      <div class="callout" style="flex:0.9;display:flex;align-items:center;font-size:26px"><div><b>Preliminar:</b> o escolhido ficou na borda da grade. A próxima rodada testa folhas de 10–20% e profundidade 2.</div></div>
+    </div>
+  </div>
+  <div class="foot"><span>Janela 12 meses · re-treino semestral · seleção 2024</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 13. IV.5 · REGRAS ============ -->
+<section class="slide" data-sec="4">
+  <div class="top"><div class="tag">IV.5 · Regras de compra e venda</div><div class="track"><span>I</span><span>II</span><span>III</span><span class="on">IV</span><span>V</span></div></div>
+  <h2>Operar só quando a previsão é forte, já que operar todo candle não paga o custo</h2>
+  <div class="body">
+    <table>
+      <tr><th style="width:18%">Regra</th><th style="width:44%">Opções</th><th>O que orienta a escolha</th></tr>
+      <tr><td><b>Entrada</b></td><td>só os 50%, 30% ou 10% de previsões mais fortes; ou previsão em pontos maior que o custo</td><td>retorno seguinte por decil da previsão</td></tr>
+      <tr><td><b>Lado</b></td><td>compra e venda · só compra · só venda</td><td>decis positivos × negativos</td></tr>
+      <tr><td><b>Saída</b></td><td>fecha no próximo candle · segura alguns candles · alvo e stop pela volatilidade</td><td>quanto o preço anda a favor e contra depois do sinal</td></tr>
+      <tr><td><b>Filtros</b></td><td>nenhum · só horários bons · só volatilidade alta</td><td>resultado por hora e por nível de volatilidade</td></tr>
+    </table>
+    <div class="row" style="gap:40px">
+      <ul class="clean" style="flex:1.2">
+        <li>Escolha pela esperança ± erro-padrão, com pelo menos ~100 operações em 2024</li>
+        <li>Toda regra é comparada com sorteios aleatórios nos mesmos candles</li>
+      </ul>
+      <div class="callout" style="flex:1;font-size:27px">É o passo mais fácil de sobreajustar: <b>poucas opções</b> e o número de combinações testadas é registrado.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Previsões já congeladas nos passos 1–4</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 14. IV.6 · VALIDAÇÃO ============ -->
+<section class="slide" data-sec="4">
+  <div class="top"><div class="tag">IV.6 · Validação</div><div class="track"><span>I</span><span>II</span><span>III</span><span class="on">IV</span><span>V</span></div></div>
+  <h2>O modelo é congelado por escrito e rodado uma vez; a saída é o retorno financeiro</h2>
+  <div class="body">
+    <div class="row" style="align-items:stretch">
+      <div class="col" style="flex:0.8;gap:18px">
+        <div class="label">Congelado antes de rodar</div>
+        <ul class="clean">
+          <li>candle · janela · re-treino</li>
+          <li>features · hiperparâmetros</li>
+          <li>regra de entrada, lado, saída e filtros</li>
+        </ul>
+        <p class="note" style="margin-top:12px">Antes, uma única confirmação: refazer candle × janela com as features finais.</p>
+      </div>
+      <div class="col" style="flex:1.2;gap:16px">
+        <div class="label">Saída · 01/2025 → 03/2026</div>
+        <div class="row" style="gap:16px">
+          <div class="box col" style="gap:8px"><p class="note" style="font-size:22px">Resultado acumulado</p><div class="big" style="font-size:60px;color:var(--muted)">— pts</div><p class="mono" style="font-size:22px;color:var(--muted)">— R$ por minicontrato</p></div>
+          <div class="box col" style="gap:8px"><p class="note" style="font-size:22px">Esperança por operação</p><div class="big" style="font-size:60px;color:var(--muted)">— ± —</div><p class="mono" style="font-size:22px;color:var(--muted)">— operações</p></div>
+        </div>
+        <table style="font-size:25px">
+          <tr><th>Comparado com</th><th class="num">Resultado / op</th></tr>
+          <tr><td>Não operar</td><td class="num">0</td></tr>
+          <tr><td>ARIMAX (frente estatística)</td><td class="num neg">−41 ± 42</td></tr>
+          <tr><td>Sorteio aleatório nos mesmos candles</td><td class="num">percentil —</td></tr>
+        </table>
+      </div>
+    </div>
+    <p class="note">Também reportados: custo de equilíbrio (contra 5 pts), acerto de direção e correlação.</p>
+  </div>
+  <div class="foot"><span>Rodado uma única vez · custo de 5 pts</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 15. V · REDES NEURAIS ============ -->
+<section class="slide" data-sec="5">
+  <div class="top"><div class="tag">V · Frente redes neurais</div><div class="track"><span>I</span><span>II</span><span>III</span><span>IV</span><span class="on">V</span></div></div>
+  <h2>A rede usa o mesmo candle, as mesmas features e a mesma janela do RF: só o modelo muda</h2>
+  <div class="body">
+    <div class="row">
+      <div class="box col"><div class="label">LSTM</div><h3>Lê a sequência</h3><p class="muted">Recebe os últimos 15, 30 ou 60 candles do pregão e aprende que padrão da sequência importa.</p></div>
+      <div class="box col"><div class="label">MLP</div><h3>Sem sequência</h3><p class="muted">Mesmas entradas do RF em uma rede simples. Mostra se o ganho vem da sequência ou só da rede.</p></div>
+      <div class="box col"><div class="label">Cuidados</div><h3>Contra o ruído</h3><p class="muted">Poucas camadas, parada antecipada, perda robusta a caudas e média de 5 sementes por trimestre.</p></div>
+    </div>
+    <div class="row" style="gap:40px;align-items:center">
+      <p style="flex:1.2">Mesmo walk-forward, mesma seleção em 2024, mesmas regras de operação e a mesma validação única. O resultado entra na mesma tabela financeira das outras frentes.</p>
+      <div style="flex:0.8;display:flex;justify-content:flex-end"><span class="pill now" style="font-size:26px;padding:10px 20px">CANDLE, FEATURES E JANELA JÁ DEFINIDOS</span></div>
+    </div>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN</span><span class="pg"></span></div>
+</section>
+
+<!-- ============ 16. ONDE ESTAMOS ============ -->
+<section class="slide dark" data-sec="6">
+  <div class="top"><div class="tag">Onde estamos</div><div class="track"><span>I</span><span>II</span><span>III</span><span>IV</span><span>V</span></div></div>
+  <h2>A direção quase não tem memória; o RF achou um sinal real, que ainda não paga o custo</h2>
+  <div class="body">
+    <table style="color:var(--on-ink)">
+      <tr><th style="color:var(--on-ink-muted);border-color:#5CC9A7">Frente</th><th style="color:var(--on-ink-muted);border-color:#5CC9A7">Situação</th><th style="color:var(--on-ink-muted);border-color:#5CC9A7">Retorno na validação</th></tr>
+      <tr><td style="border-color:#2E4541"><b>Estatística · ARIMA</b></td><td style="border-color:#2E4541">concluída</td><td class="mono" style="border-color:#2E4541;color:#F08C70">−41 ± 42 pts/op</td></tr>
+      <tr><td style="border-color:#2E4541"><b>Machine learning · RF</b></td><td style="border-color:#2E4541">passos 1 a 4 de 6 · próximo: regras</td><td class="mono" style="border-color:#2E4541;color:var(--on-ink-muted)">pendente</td></tr>
+      <tr><td style="border-color:#2E4541"><b>Redes neurais</b></td><td style="border-color:#2E4541">planejada</td><td class="mono" style="border-color:#2E4541;color:var(--on-ink-muted)">pendente</td></tr>
+    </table>
+    <p style="font-size:34px">Perguntas?</p>
+  </div>
+  <div class="foot"><span>Previsão T+1 · WIN</span><span class="pg"></span></div>
+</section>
+
+</div></div>
+<div id="hud"></div>
+<script>
+(function(){
+  var slides=[].slice.call(document.querySelectorAll('.slide'));
+  var deck=document.getElementById('deck'), hud=document.getElementById('hud');
+  var n=slides.length, i=0;
+  slides.forEach(function(s,k){var pg=s.querySelector('.pg'); if(pg) pg.textContent=String(k+1).padStart(2,'0')+' / '+String(n).padStart(2,'0');});
+  function fit(){var s=Math.min(window.innerWidth/1920,window.innerHeight/1080);deck.style.transform='scale('+s+')';}
+  function show(k){i=Math.max(0,Math.min(n-1,k));slides.forEach(function(s,j){s.classList.toggle('active',j===i);});
+    hud.textContent=(i+1)+' / '+n+'  ·  ← → para navegar';
+    if(location.hash!=='#'+(i+1)) history.replaceState(null,'','#'+(i+1));}
+  window.addEventListener('resize',fit);
+  document.addEventListener('keydown',function(e){
+    if(['ArrowRight','PageDown',' ','Enter'].indexOf(e.key)>=0){e.preventDefault();show(i+1);}
+    else if(['ArrowLeft','PageUp','Backspace'].indexOf(e.key)>=0){e.preventDefault();show(i-1);}
+    else if(e.key==='Home') show(0); else if(e.key==='End') show(n-1);
+  });
+  document.getElementById('stage').addEventListener('click',function(e){ if(e.clientX>window.innerWidth/2) show(i+1); else show(i-1); });
+  fit(); show((parseInt(location.hash.slice(1),10)||1)-1);
+})();
+</script>
+</body>
+</html>

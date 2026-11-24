@@ -1,0 +1,436 @@
+%% ============================================================================
+%% Comparativo de modelos preditivos para o retorno do candle T+1
+%% Modelo IEEE (IEEEtran, conferência) -- pronto para importar no Overleaf
+%% Compilador: pdfLaTeX
+%%
+%% Valores marcados com \pend{...} (em vermelho) ainda não foram produzidos:
+%% passos 2 a 6 da frente de Random Forest e toda a frente de redes neurais.
+%% Para ocultar o destaque na versão final, troque a definição de \pend.
+%% ============================================================================
+\documentclass[conference]{IEEEtran}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{icomma}            % vírgula decimal em modo matemático
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{cite}
+
+% Marcador de resultado pendente
+\newcommand{\pend}[1]{\textcolor{red}{\textbf{[#1]}}}
+
+\hyphenation{WIN-FUT pre-gão pre-gões vo-la-ti-li-da-de}
+
+\begin{document}
+
+\title{Comparativo de Modelos Preditivos para o Retorno do Candle T+1 no Minicontrato Futuro de Ibovespa: ARIMA, Random Forest e Redes Neurais}
+
+\author{
+\IEEEauthorblockN{Autor 1, Autor 2, Autor 3}
+\IEEEauthorblockA{Universidade Federal de Goiás (UFG)\\
+Goiânia, GO, Brasil\\
+\{autor1, autor2, autor3\}@ufg.br}
+}
+
+\maketitle
+
+%% ----------------------------------------------------------------------------
+\begin{abstract}
+Este trabalho compara três famílias de modelos na previsão do log-retorno do próximo candle (T+1) do minicontrato futuro de Ibovespa (WIN), usando candles de 1 a 60 minutos entre outubro de 2020 e março de 2026. As famílias são um modelo estatístico linear (ARIMA e variantes com exógena e sazonalidade), um modelo de aprendizado de máquina (Random Forest) e uma rede neural recorrente (LSTM). Os três seguem o mesmo protocolo: re-treino walk-forward, seleção em 2024 e teste único de 01/2025 a 03/2026. As métricas também são as mesmas: Theil U contra a previsão ingênua de retorno zero, correlação de Spearman com erro-padrão robusto entre meses e esperança por operação depois do custo de 5 pontos. A família ARIMA não superou o ingênuo em nenhuma combinação de candle e janela (Theil U $\geq 1$) e teve no teste $-41 \pm 42$ pontos por operação, desempenho indistinguível de sinais aleatórios nos mesmos candles. No candle de 1 minuto, o Random Forest obteve correlação pequena, mas estável, com o retorno seguinte em 2024 ($\rho = 0{,}016$, $t$ robusto $= 4{,}9$, positiva nos 12 meses). Ainda assim, o ganho bruto de $0{,}37$ ponto por operação fica muito abaixo do custo de 5 pontos. A análise dos dados mostra que a direção não tem memória linear explorável em nenhum tamanho de candle, enquanto a volatilidade é fortemente previsível. Discutimos as implicações dessa assimetria para a comparação entre os modelos e para o uso econômico das previsões.
+\end{abstract}
+
+\begin{IEEEkeywords}
+previsão de séries temporais, mercado futuro, ARIMA, Random Forest, LSTM, eficiência de mercado, custos de transação, walk-forward
+\end{IEEEkeywords}
+
+%% ----------------------------------------------------------------------------
+\section{Introdução}
+
+Prever a direção do próximo movimento de preço é o problema central de qualquer estratégia direcional de curto prazo. A hipótese de mercado eficiente~\cite{fama1970} prevê que esse retorno seja essencialmente imprevisível depois dos custos. Mesmo assim, há relatos frequentes de modelos de aprendizado de máquina e de redes neurais com acerto de direção acima de 50\%~\cite{fischer2018,gu2020}. Muitas vezes esses resultados vêm de protocolos que favorecem o modelo: avaliação sem custos, comparação com referências frágeis ou escolha de hiperparâmetros no próprio período de teste~\cite{bailey2014,lopezdeprado2018}.
+
+Este artigo compara três abordagens de complexidade crescente na previsão do retorno T+1 do minicontrato futuro de Ibovespa (WIN), negociado na B3:
+\begin{enumerate}
+  \item um \textbf{modelo estatístico linear}, a família ARIMA~\cite{box2015}, com variantes exógena (dólar futuro) e sazonal;
+  \item um \textbf{modelo de aprendizado de máquina}, o Random Forest (RF)~\cite{breiman2001}, capaz de captar relações não lineares e condicionais;
+  \item uma \textbf{rede neural recorrente}, a LSTM~\cite{hochreiter1997}, que aprende a representação da sequência diretamente dos dados.
+\end{enumerate}
+
+A contribuição principal é o \emph{protocolo comum}. Os três modelos usam os mesmos dados, a mesma divisão temporal, o mesmo esquema de re-treino, as mesmas referências (previsão ingênua e sinais aleatórios nos mesmos candles) e o mesmo critério econômico, a esperança por operação depois de custos realistas, sempre com erro-padrão. Assim, uma diferença de desempenho só pode vir do modelo.
+
+%% ----------------------------------------------------------------------------
+\section{Trabalhos Relacionados}
+
+A modelagem linear de retornos por processos ARMA tem origem em Box e Jenkins~\cite{box2015}. Em alta frequência, a autocorrelação dos retornos costuma ser pequena e instável, enquanto a da volatilidade é forte e persistente. O modelo HAR de Corsi~\cite{corsi2009} explora essa persistência com termos diário, semanal e mensal.
+
+Entre os métodos de aprendizado de máquina, Gu, Kelly e Xiu~\cite{gu2020} mostram que árvores e redes neurais superam regressões lineares na previsão de retornos mensais de ações. Krauss, Do e Huck~\cite{krauss2017} e Fischer e Krauss~\cite{fischer2018} relatam ganhos com RF e LSTM em retornos diários do S\&P~500. Esses ganhos diminuem depois dos custos e ao longo do tempo. No intradiário, Gao \emph{et al.}~\cite{gao2018} documentam o \emph{momentum intradiário}: o retorno da primeira meia hora prevê o da última.
+
+Na avaliação, a comparação entre previsões segue Diebold e Mariano~\cite{diebold1995}, e o risco de sobreajuste em \emph{backtests} é discutido por Bailey \emph{et al.}~\cite{bailey2014} e López de Prado~\cite{lopezdeprado2018}. A calibração de intervalos de previsão usa o teste de cobertura de Kupiec~\cite{kupiec1995}.
+
+%% ----------------------------------------------------------------------------
+\section{Dados e Formulação do Problema}
+
+\subsection{Base de dados}
+
+São usados candles de 1 minuto do contrato contínuo do WIN (WIN\$N) e do minicontrato de dólar (WDO\$N), de 15/10/2020 a 31/03/2026. Ficam só os candles do pregão regular (9h00 às 18h24), em um total de 757.711 candles de 1 minuto em 1.368 pregões. Candles de $k \in \{5, 15, 30, 60\}$ minutos são agregados dentro do pregão e alinhados ao relógio. A base tem lacunas, a maior entre junho e outubro de 2023. Por isso o tamanho efetivo de cada janela de treino é registrado em todos os ajustes.
+
+\subsection{Variável-alvo}
+
+O alvo é o log-retorno percentual do próximo candle \emph{no mesmo pregão}:
+\begin{equation}
+  r_{t+1} = 100 \cdot \ln\!\left(\frac{C_{t+1}}{C_t}\right),
+  \label{eq:alvo}
+\end{equation}
+em que $C_t$ é o preço de fechamento do candle $t$. O último candle de cada dia fica sem alvo, para que nenhum par atravesse a noite. O preço previsto sai de $\hat{C}_{t+1} = C_t \, e^{\hat r_{t+1}/100}$.
+
+\subsection{Divisão temporal}
+
+A Tabela~\ref{tab:divisao} resume a divisão. Toda escolha de modelo, candle, janela, \emph{features}, hiperparâmetros e regras de operação é feita com dados até 31/12/2024. O período de teste é rodado \emph{uma única vez} com cada modelo congelado.
+
+\begin{table}[!t]
+\centering
+\caption{Divisão temporal dos dados}
+\label{tab:divisao}
+\footnotesize
+\begin{tabular}{@{}lll@{}}
+\toprule
+Período & Intervalo & Uso \\
+\midrule
+Exploração & 15/10/2020 -- 31/12/2023 & análise de dados, sem modelo \\
+Seleção    & 01/01/2024 -- 31/12/2024 & walk-forward trimestral \\
+Teste      & 01/01/2025 -- 31/03/2026 & avaliação única \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Custos de transação}
+
+Uma operação completa (entrada e saída) de um minicontrato custa cerca de 2,5 pontos em taxas da B3 (1 ponto = R\$~0,20). A corretagem é nula na maioria das corretoras. Somamos 2,5 pontos de meio \emph{tick} de \emph{spread}, pago em uma das pontas, com a outra executada por ordem limitada. O custo adotado em todo o trabalho é, portanto, de \textbf{5 pontos por operação completa}. Também reportamos o \emph{custo de equilíbrio}, isto é, a esperança antes do custo, que é o maior custo que a estratégia suporta sem prejuízo.
+
+%% ----------------------------------------------------------------------------
+\section{Protocolo de Avaliação Comum}
+
+\subsection{Re-treino walk-forward}
+
+Em cada trimestre de avaliação, o modelo é treinado com os $J$ meses imediatamente anteriores e prevê todos os candles do trimestre. Os parâmetros ficam fixos dentro do trimestre, e cada previsão usa só informação disponível até $t$. As previsões trimestrais são empilhadas para formar o ano.
+
+\subsection{Métricas de previsão}
+
+\textbf{Theil U}~\cite{theil1966}. Erro quadrático do modelo dividido pelo erro da previsão ingênua $\hat r_{t+1} = 0$:
+\begin{equation}
+  U = \sqrt{\frac{\sum_t (r_{t+1} - \hat r_{t+1})^2}{\sum_t r_{t+1}^2}}.
+  \label{eq:theil}
+\end{equation}
+$U < 1$ indica que o modelo erra menos que prever zero. Como a diferença costuma estar na quarta casa decimal, valores até $U \leq 1{,}001$ contam como empate.
+
+\textbf{Correlação de Spearman.} Mede se a previsão ordena corretamente os retornos realizados e é o critério principal de habilidade direcional. Com centenas de milhares de candles, o erro-padrão ingênuo $1/\sqrt{n}$ subestima a incerteza. Por isso usamos um \textbf{$t$ robusto}: a média das 12 correlações mensais dividida pelo seu erro-padrão entre meses,
+\begin{equation}
+  t_{\text{rob}} = \frac{\bar\rho_{\text{mensal}}}{s(\rho_{\text{mensal}})/\sqrt{12}}.
+  \label{eq:trob}
+\end{equation}
+
+\textbf{Acerto de direção} e \textbf{dispersão relativa} da previsão ($\sigma_{\hat r}/\sigma_r$) complementam o painel. A dispersão relativa mostra o quanto o modelo se afasta de zero.
+
+\subsection{Correlação necessária para pagar o custo}
+
+Se a previsão tem correlação $\rho$ com a variação seguinte em pontos (desvio $\sigma_{\text{pts}}$), operar o sinal da previsão rende, sob aproximação normal, cerca de $\rho\,\sigma_{\text{pts}}\sqrt{2/\pi}$ pontos por operação. A correlação mínima para pagar um custo $c$ é então
+\begin{equation}
+  \rho_{\text{nec}} = \frac{c}{\sigma_{\text{pts}}\sqrt{2/\pi}}.
+  \label{eq:rhonec}
+\end{equation}
+Essa relação permite julgar a relevância econômica de uma correlação antes de definir qualquer regra de operação.
+
+\subsection{Métricas econômicas e referência aleatória}
+
+A esperança por operação, em pontos e depois do custo, é sempre reportada com $\pm 1$ erro-padrão. A referência para operação são \emph{sinais aleatórios nos mesmos candles} em que o modelo opera, com a mesma regra de entrada e saída: 2.000 sorteios de direção, que formam a distribuição nula. Comparar o modelo com um aleatório que opera todos os candles é injusto, porque o limiar de entrada tende a selecionar candles mais voláteis.
+
+\subsection{Teste de igualdade de previsões}
+
+Para comparar dois modelos, ou um modelo e o ingênuo, aplica-se o teste de Diebold-Mariano~\cite{diebold1995} sobre a diferença de perdas quadráticas, com variância de longo prazo HAC.
+
+%% ----------------------------------------------------------------------------
+\section{Modelos}
+
+\subsection{Modelo estatístico: família ARIMA}
+
+O modelo base é um ARIMA(1,0,1) sem constante sobre o log-retorno, equivalente a um ARIMA(1,1,1) no log-preço:
+\begin{equation}
+  \hat r_{t+1} = \phi\, r_t + \theta\, e_t,
+  \label{eq:arma}
+\end{equation}
+em que $e_t$ é o erro da última previsão. A parte AR ($\phi$) representa \emph{momentum} ($\phi>0$) ou reversão ($\phi<0$). A parte MA ($\theta$) corrige pela última surpresa. A estimação é por máxima verossimilhança (\texttt{statsmodels}). Foram avaliadas três variantes:
+\begin{itemize}
+  \item \textbf{ARIMAX}: inclui o retorno do dólar futuro (WDO) no candle atual;
+  \item \textbf{SARIMA}: inclui um termo sazonal no mesmo horário do pregão anterior ($s=9$ candles de 60 min);
+  \item \textbf{SARIMAX}: inclui os dois.
+\end{itemize}
+A grade de seleção cobriu candles de 1, 15 e 60 min e janelas de 1, 3, 6 e 12 meses, com re-estimação trimestral.
+
+\subsection{Aprendizado de máquina: Random Forest}
+
+O RF~\cite{breiman2001} é um \emph{ensemble} de árvores de regressão treinadas em subamostras \emph{bootstrap}. Ele capta interações e não linearidades sem especificação prévia. Como o sinal esperado é fraco, partimos de uma configuração fortemente regularizada: 200 árvores, profundidade máxima 5, no mínimo 1\% do treino em cada folha, todas as \emph{features} disponíveis em cada divisão e 50\% do treino por árvore.
+
+A frente de RF segue um plano em seis passos, cada um com critério de decisão escrito antes de rodar:
+\begin{enumerate}
+  \item \textbf{Candle}: escolha entre 1, 5, 15, 30 e 60 min, com \emph{features} básicas e janela de 12 meses;
+  \item \textbf{Features}: cerca de 20 candidatas em 8 grupos (Tabela~\ref{tab:features}), pré-seleção pelos dados até 2023, remoção de redundâncias ($|\rho|>0{,}8$) e confirmação por importância por permutação em 2024;
+  \item \textbf{Janela e re-treino}: curva de envelhecimento e grade de 3/6/12/24 meses $\times$ re-treino mensal, trimestral ou semestral;
+  \item \textbf{Hiperparâmetros}: número de árvores e grade de profundidade $\times$ tamanho mínimo da folha $\times$ \texttt{max\_features};
+  \item \textbf{Regras de operação}: limiar pelos decis da previsão, lado, saída por \emph{take profit} e \emph{stop} proporcionais à volatilidade prevista e filtro de horário;
+  \item \textbf{Congelamento e teste} único em 01/2025 -- 03/2026.
+\end{enumerate}
+
+\begin{table}[!t]
+\centering
+\caption{Features candidatas (informação disponível até $t$)}
+\label{tab:features}
+\footnotesize
+\begin{tabular}{@{}p{0.27\columnwidth}p{0.63\columnwidth}@{}}
+\toprule
+Grupo & Features \\
+\midrule
+Retornos recentes   & \texttt{ret\_0}, \texttt{ret\_1}, \texttt{ret\_2} \\
+Retornos acumulados & \texttt{ret\_acum\_5c}, \texttt{ret\_acum\_15c}, \texttt{ret\_acum\_60c} \\
+Posição no dia      & \texttt{ret\_dia}, \texttt{pos\_range\_dia}, \texttt{hora} \\
+Volatilidade        & \texttt{vol\_20}, \texttt{vol\_60}, \texttt{vol\_razao}, \texttt{rv\_dia\_ant}, \texttt{rv\_media\_5d} \\
+Forma do candle     & \texttt{range\_hl}, \texttt{corpo}, \texttt{pos\_fech\_candle} \\
+Volume              & \texttt{vol\_rel} \\
+Abertura            & \texttt{gap\_abertura} \\
+Dólar (WDO)         & \texttt{wdo\_ret\_0}, \texttt{wdo\_ret\_acum\_15c} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Redes neurais: LSTM}
+
+A LSTM~\cite{hochreiter1997} recebe a sequência das últimas $L$ observações do vetor de \emph{features} e produz $\hat r_{t+1}$. Para que a comparação com o RF isole o efeito do modelo, a rede usa \emph{o mesmo candle, as mesmas features e a mesma janela} escolhidos nos passos 1 a 3 do RF. A configuração proposta é:
+\begin{itemize}
+  \item comprimento da sequência $L \in \{15, 30, 60\}$ candles, sempre dentro do pregão;
+  \item 1 ou 2 camadas LSTM com 16 a 64 unidades, \emph{dropout} de 0,2 e camada densa linear na saída;
+  \item perda de Huber (robusta às caudas pesadas dos retornos) e otimizador Adam;
+  \item padronização ajustada só na janela de treino;
+  \item validação nos últimos 10\% (cronológicos) de cada janela de treino, com \emph{early stopping};
+  \item média de 5 sementes por trimestre, para reduzir a variância de inicialização.
+\end{itemize}
+Como referência intermediária entre o RF e a LSTM, avalia-se também um perceptron multicamadas (MLP) com as mesmas entradas, sem a estrutura sequencial.
+
+%% ----------------------------------------------------------------------------
+\section{Resultados}
+
+\subsection{O que os dados mostram (exploração até 2023)}
+
+A Tabela~\ref{tab:rho1} relaciona o tamanho típico do movimento de cada candle com a autocorrelação de primeira ordem $\rho_1$ e com a correlação necessária para pagar 5 pts~\eqref{eq:rhonec}. Em todos os tamanhos, $\rho_1$ fica dentro de $\pm 2$ erros-padrão robustos de zero e uma ou duas ordens de grandeza abaixo de $\rho_{\text{nec}}$. Com o erro-padrão ingênuo $1/\sqrt{n}$, alguns tamanhos pareceriam significativos. O erro robusto, que considera os agrupamentos de volatilidade, desfaz essa impressão. Estendendo a análise até 120 min e a 2024, o maior $\rho_1$ medido é 0,014, contra um $\rho_{\text{nec}}$ entre 0,014 (60 min) e 0,107 (1 min) no custo de 5 pts.
+
+\begin{table}[!t]
+\centering
+\caption{Movimento, memória e correlação necessária por candle (WIN, até 31/12/2023)}
+\label{tab:rho1}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+Candle & $\sigma_{\text{pts}}$ & $|\Delta|$ médio & $\rho_1$ & EP rob. & $\rho_{\text{nec}}$ (5 pts) \\
+\midrule
+1 min  &  58,5 &  40,7 & $-0{,}0033$ & 0,0044 & 0,107 \\
+5 min  & 128,6 &  91,7 & $-0{,}0014$ & 0,0068 & 0,049 \\
+15 min & 219,8 & 156,7 & $\phantom{-}0{,}0000$ & 0,0100 & 0,029 \\
+30 min & 312,7 & 223,7 & $\phantom{-}0{,}0001$ & 0,0124 & 0,020 \\
+60 min & 440,8 & 317,6 & $-0{,}0088$ & 0,0187 & 0,014 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+A volatilidade, por outro lado, tem memória longa. A volatilidade realizada diária tem autocorrelação de 0,76 com o dia anterior e ainda cerca de 0,4 depois de 20 pregões, enquanto o retorno diário fica dentro do ruído em todas as defasagens. Fora da amostra, um modelo HAR~\cite{corsi2009} explica 47\%, 52\% e 90\% da variação da volatilidade diária em 2022, 2023 e 2024. Para a direção, o $R^2$ fora da amostra fica em torno de 0,02\%. Combinando o perfil horário dos últimos 12 meses com o nível diário previsto pelo HAR, a banda de 95\% para candles de 60 min passa no teste de Kupiec~\cite{kupiec1995} em 9 de 10 horas. Com variância constante, como no SARIMAX, passa em apenas 2.
+
+A exploração também buscou padrões condicionais. Dois candidatos apareceram até 2024: seguir gaps de abertura acima de 0,5\% ($+44 \pm 19$ pts) e o \emph{momentum} da última meia hora~\cite{gao2018} ($+29 \pm 8$ pts). No teste, o segundo caiu para $-7 \pm 15$ pts, e o primeiro teve só 51 operações ($+31 \pm 53$ pts), um resultado inconclusivo.
+
+\subsection{Modelo estatístico (ARIMA)}
+
+A Tabela~\ref{tab:arima} resume a família ARIMA. Nenhuma variante, e nenhuma das 12 combinações de candle e janela, ficou abaixo de $U=1$. A correlação entre previsão e retorno ficou entre $-0{,}06$ e $+0{,}01$. O ARIMAX foi escolhido na seleção pela maior esperança ($+10{,}2 \pm 19$ pts) entre 180 combinações de modelo e regra, uma vantagem menor que o próprio erro-padrão. No teste, rendeu $-41{,}1 \pm 42$ pts por operação.
+
+\begin{table}[!t]
+\centering
+\caption{Família ARIMA, candle de 60 min, janela de 6 meses}
+\label{tab:arima}
+\footnotesize
+\setlength{\tabcolsep}{3.5pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Modelo & Theil U & $\rho$ & Acerto & Esperança (pts) \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Seleção 2024 (melhor regra de cada modelo)}} \\
+ARIMA            & 1,0016 & $-0{,}012$ & 50,2\% & $+1{,}4 \pm 18$ \\
+ARIMAX           & 1,0043 & $-0{,}016$ & 48,5\% & $+10{,}2 \pm 19$ \\
+SARIMA ($s=9$)   & 1,0018 & $-0{,}007$ & 50,8\% & $-0{,}7 \pm 6$ \\
+SARIMAX ($s=9$)  & 1,0044 & $-0{,}012$ & 49,5\% & $+3{,}8 \pm 13$ \\
+SARIMAX ($s=10$) & 1,0046 & $-0{,}002$ & 48,2\% & $+5{,}9 \pm 20$ \\
+\midrule
+\multicolumn{5}{@{}l}{\emph{Teste 01/2025 -- 03/2026 (214 operações)}} \\
+ARIMAX           & 1,0027 & $-0{,}018$ & 49,2\% & $-41{,}1 \pm 42$ \\
+\bottomrule
+\multicolumn{5}{@{}p{0.95\columnwidth}@{}}{\scriptsize Esperança com custo de 5 pts, $\pm 1$ erro-padrão. $s$: defasagem sazonal em candles (9 = um pregão).}
+\end{tabular}
+\end{table}
+
+Os parâmetros estimados explicam o resultado. Em quase todos os trimestres, $\hat\phi \approx -\hat\theta$, ou seja, as raízes AR e MA se cancelam e o modelo se reduz a ruído branco. Nesse caso $\phi$ não é identificado, o que explica os saltos de $-0{,}96$ a $+0{,}89$ entre trimestres sem que o mercado tenha mudado. A previsão fica praticamente colada em zero, com desvio de 0,016\% contra 0,288\% do retorno real. Na comparação com 2.000 sorteios aleatórios nos mesmos 214 candles, o ARIMAX ficou no percentil 19. O intervalo central de 90\% dos sorteios vai de $-68$ a $+54$ pts.
+
+\subsection{Random Forest}
+
+A Tabela~\ref{tab:rf} apresenta o passo 1 do RF: o mesmo modelo, as mesmas \emph{features} básicas (\texttt{ret\_0}, \texttt{ret\_1}, \texttt{ret\_2}, \texttt{vol\_20}, \texttt{hora}) e janela de 12 meses, variando só o tamanho do candle. Ao contrário do ARIMA, o RF no candle de 1 minuto tem correlação positiva em todos os 12 meses de 2024 e $t$ robusto de 4,9. É o único candle que passa no filtro de Theil U e no critério de significância. O efeito, porém, é pequeno: $\rho = 0{,}016$, contra $\rho_{\text{nec}} = 0{,}107$ para 5 pts. Operando o sinal em todos os candles, o ganho bruto é de $+0{,}37 \pm 0{,}11$ pt, bem abaixo do custo de 5 pts (Fig.~\ref{fig:rf}). A previsão também é muito encolhida, com desvio de 2,3\% do desvio do retorno real.
+
+\begin{table}[!t]
+\centering
+\caption{Random Forest, passo 1: escolha do candle (seleção 2024, janela 12 meses)}
+\label{tab:rf}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}rrrrrrr@{}}
+\toprule
+Candle & Theil U & $\rho$ & $t_{\text{rob}}$ & Meses $\rho\!>\!0$ & Acerto & Bruto (pts) \\
+\midrule
+1 min  & 1,00003 & $+0{,}0163$ & $+4{,}93$ & 12/12 & 50,9\% & $+0{,}37 \pm 0{,}11$ \\
+5 min  & 1,00054 & $+0{,}0049$ & $+0{,}32$ &  7/12 & 50,1\% & $+0{,}22 \pm 0{,}55$ \\
+15 min & 1,00248 & $+0{,}0046$ & $-0{,}31$ &  5/12 & 50,4\% & $-0{,}73 \pm 1{,}64$ \\
+30 min & 1,00507 & $+0{,}0005$ & $-0{,}23$ &  5/12 & 50,6\% & $-2{,}06 \pm 3{,}30$ \\
+60 min & 1,01318 & $-0{,}0202$ & $-0{,}48$ &  4/12 & 49,9\% & $+0{,}16 \pm 6{,}20$ \\
+\bottomrule
+\multicolumn{7}{@{}p{0.95\columnwidth}@{}}{\scriptsize Bruto: ganho médio por operação antes do custo, operando o sinal de $\hat r$ em todo candle, $\pm 1$ erro-padrão.}
+\end{tabular}
+\end{table}
+
+\begin{figure}[!t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  width=\columnwidth, height=0.62\columnwidth,
+  xmode=log, log basis x=10,
+  xtick={1,5,15,30,60}, xticklabels={1,5,15,30,60},
+  xmin=0.75, xmax=80,
+  ymin=-0.07, ymax=0.12,
+  xlabel={tamanho do candle (min, escala log)},
+  ylabel={correlação},
+  ylabel style={yshift=-4pt},
+  yticklabel style={/pgf/number format/fixed, /pgf/number format/precision=2, /pgf/number format/use comma},
+  legend style={font=\scriptsize, at={(0.98,0.98)}, anchor=north east, draw=none, fill=white, fill opacity=0.85, text opacity=1},
+  tick label style={font=\footnotesize},
+  label style={font=\footnotesize},
+  grid=major, grid style={gray!20},
+]
+\addplot[black!50, thin, forget plot, domain=0.75:80] {0};
+\addplot+[only marks, mark=*, blue!70!black, mark size=1.8pt,
+  error bars/.cd, y dir=both, y explicit]
+  coordinates {
+    (1,  0.0176)  +- (0, 0.0071)
+    (5,  0.0022)  +- (0, 0.0139)
+    (15,-0.0034)  +- (0, 0.0221)
+    (30,-0.0039)  +- (0, 0.0342)
+    (60,-0.0111)  +- (0, 0.0460)
+  };
+\addlegendentry{RF: Spearman mensal $\pm$ 2 EP}
+\addplot[red!70!black, dashed, thick, mark=none]
+  coordinates {(1,0.107) (5,0.049) (15,0.029) (30,0.020) (60,0.014)};
+\addlegendentry{$\rho_{\text{nec}}$, 5 pts}
+\end{axis}
+\end{tikzpicture}
+\caption{Correlação obtida pelo RF em 2024 (média das correlações mensais, $\pm 2$ erros-padrão robustos) e correlação necessária para pagar o custo~\eqref{eq:rhonec}. Só o candle de 1 min fica acima de zero com folga, e mesmo ele fica bem abaixo da linha de custo.}
+\label{fig:rf}
+\end{figure}
+
+A escolha do candle de 1 minuto se mantém com janelas de 6 meses ($t_{\text{rob}}=3{,}6$), mas não com 24 meses ($t_{\text{rob}}=1{,}3$), o que indica dependência da janela, a ser tratada no passo 3. Os passos seguintes estão em andamento: \emph{features}, janela e re-treino, hiperparâmetros e regras de operação. Os resultados de teste do RF são \pend{pendentes: Theil U, $\rho$, $t_{\text{rob}}$ e esperança no teste 01/2025 -- 03/2026}.
+
+\subsection{Redes neurais (LSTM e MLP)}
+
+\pend{Pendente.} A LSTM e o MLP serão avaliados com o candle, as \emph{features} e a janela congelados no RF, no mesmo walk-forward de 2024 e no mesmo teste único, e os resultados entrarão na Tabela~\ref{tab:comparativo}.
+
+\subsection{Comparativo final}
+
+A Tabela~\ref{tab:comparativo} consolida as três abordagens no período de teste e reserva espaço para os modelos ainda em execução.
+
+\begin{table}[!t]
+\centering
+\caption{Comparativo no teste (01/2025 -- 03/2026)}
+\label{tab:comparativo}
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Modelo & Theil U & $\rho$ & Esperança (pts) & Percentil vs.\ aleatório \\
+\midrule
+Ingênuo ($\hat r=0$) & 1,0000 & -- & -- & -- \\
+ARIMAX (60 min)      & 1,0027 & $-0{,}018$ & $-41{,}1 \pm 42$ & 19 \\
+Random Forest        & \pend{--} & \pend{--} & \pend{--} & \pend{--} \\
+MLP                  & \pend{--} & \pend{--} & \pend{--} & \pend{--} \\
+LSTM                 & \pend{--} & \pend{--} & \pend{--} & \pend{--} \\
+\bottomrule
+\multicolumn{5}{@{}p{0.95\columnwidth}@{}}{\scriptsize Esperança com custo de 5 pts. Percentil do modelo na distribuição de 2.000 sorteios de direção nos mesmos candles e com a mesma regra.}
+\end{tabular}
+\end{table}
+
+%% ----------------------------------------------------------------------------
+\section{Discussão}
+
+Os resultados até aqui sugerem que \emph{a complexidade do modelo não substitui a presença de sinal nos dados}. O ARIMA não falhou por configuração: a direção do retorno não tem memória linear para ele usar, em nenhum tamanho de candle, e os parâmetros estimados mostram isso diretamente ($\hat\phi \approx -\hat\theta$). O RF achou uma relação estatisticamente significativa no candle de 1 minuto, um sinal que o ARIMA, por construção linear, não capturava. Mas essa relação é uma ordem de grandeza menor que a necessária para pagar o custo.
+
+Daí saem duas consequências para a comparação. Primeiro, \emph{significância estatística e relevância econômica são critérios distintos}. Um $t$ robusto de 4,9 com ganho bruto de 0,37 pt é um sinal real, mas inútil para operar todos os candles. A única saída é operar só nos candles de previsão mais extrema, o objeto do passo 5, e verificar se a seletividade compensa a perda de amostras. Segundo, o modelo que mais ganha com flexibilidade adicional é o que tem mais estrutura para aproveitar. Como a estrutura previsível está na \emph{volatilidade} e não na direção, a abordagem mais promissora é prever primeiro a volatilidade e só então a direção do retorno padronizado, $r_{t+1}/\hat\sigma_{t+1}$. Desse modo, cada candle tem peso igual no ajuste.
+
+A principal ameaça à validade é o sobreajuste de seleção. O ARIMAX escolhido entre 180 combinações, com vantagem menor que o próprio erro-padrão, ilustra o problema. A divisão rígida entre seleção e teste, o teste único e a referência aleatória nos mesmos candles foram adotados para controlar esse risco~\cite{bailey2014}. Outras limitações: a seleção usa um único ano (2024); a aproximação normal em~\eqref{eq:rhonec} subestima o efeito das caudas pesadas; e as lacunas da base reduzem o tamanho efetivo de algumas janelas de treino.
+
+%% ----------------------------------------------------------------------------
+\section{Conclusão}
+
+Comparamos ARIMA, Random Forest e redes neurais na previsão do retorno T+1 do WIN, com protocolo idêntico e custos realistas. A família ARIMA não superou a previsão ingênua e teve desempenho indistinguível de sinais aleatórios no teste. O Random Forest encontrou no candle de 1 minuto uma correlação pequena, estável e significativa, mas cerca de sete vezes menor que a necessária para pagar 5 pontos por operação. A análise dos dados indica que a direção se comporta como ruído, enquanto o tamanho do movimento é previsível: o HAR explica de 47\% a 90\% da volatilidade diária fora da amostra. Os próximos passos são concluir a otimização do RF, avaliar a LSTM e o MLP sob o mesmo protocolo e testar a abordagem em dois estágios, com a volatilidade prevista antes da direção. \pend{Atualizar com os resultados de teste do RF e das redes neurais.}
+
+%% ----------------------------------------------------------------------------
+\begin{thebibliography}{99}
+
+\bibitem{fama1970}
+E.~F. Fama, ``Efficient capital markets: A review of theory and empirical work,'' \emph{The Journal of Finance}, vol.~25, no.~2, pp. 383--417, 1970.
+
+\bibitem{box2015}
+G.~E.~P. Box, G.~M. Jenkins, G.~C. Reinsel, and G.~M. Ljung, \emph{Time Series Analysis: Forecasting and Control}, 5th~ed. Hoboken, NJ, USA: Wiley, 2015.
+
+\bibitem{breiman2001}
+L.~Breiman, ``Random forests,'' \emph{Machine Learning}, vol.~45, no.~1, pp. 5--32, 2001.
+
+\bibitem{hochreiter1997}
+S.~Hochreiter and J.~Schmidhuber, ``Long short-term memory,'' \emph{Neural Computation}, vol.~9, no.~8, pp. 1735--1780, 1997.
+
+\bibitem{gu2020}
+S.~Gu, B.~Kelly, and D.~Xiu, ``Empirical asset pricing via machine learning,'' \emph{The Review of Financial Studies}, vol.~33, no.~5, pp. 2223--2273, 2020.
+
+\bibitem{krauss2017}
+C.~Krauss, X.~A. Do, and N.~Huck, ``Deep neural networks, gradient-boosted trees, random forests: Statistical arbitrage on the S\&P 500,'' \emph{European Journal of Operational Research}, vol.~259, no.~2, pp. 689--702, 2017.
+
+\bibitem{fischer2018}
+T.~Fischer and C.~Krauss, ``Deep learning with long short-term memory networks for financial market predictions,'' \emph{European Journal of Operational Research}, vol.~270, no.~2, pp. 654--669, 2018.
+
+\bibitem{corsi2009}
+F.~Corsi, ``A simple approximate long-memory model of realized volatility,'' \emph{Journal of Financial Econometrics}, vol.~7, no.~2, pp. 174--196, 2009.
+
+\bibitem{gao2018}
+L.~Gao, Y.~Han, S.~Z. Li, and G.~Zhou, ``Market intraday momentum,'' \emph{Journal of Financial Economics}, vol.~129, no.~2, pp. 394--414, 2018.
+
+\bibitem{diebold1995}
+F.~X. Diebold and R.~S. Mariano, ``Comparing predictive accuracy,'' \emph{Journal of Business \& Economic Statistics}, vol.~13, no.~3, pp. 253--263, 1995.
+
+\bibitem{kupiec1995}
+P.~H. Kupiec, ``Techniques for verifying the accuracy of risk measurement models,'' \emph{The Journal of Derivatives}, vol.~3, no.~2, pp. 73--84, 1995.
+
+\bibitem{bailey2014}
+D.~H. Bailey, J.~M. Borwein, M.~López de Prado, and Q.~J. Zhu, ``Pseudo-mathematics and financial charlatanism: The effects of backtest overfitting on out-of-sample performance,'' \emph{Notices of the American Mathematical Society}, vol.~61, no.~5, pp. 458--471, 2014.
+
+\bibitem{lopezdeprado2018}
+M.~López de Prado, \emph{Advances in Financial Machine Learning}. Hoboken, NJ, USA: Wiley, 2018.
+
+\bibitem{theil1966}
+H.~Theil, \emph{Applied Economic Forecasting}. Amsterdam, The Netherlands: North-Holland, 1966.
+
+\end{thebibliography}
+
+\end{document}
