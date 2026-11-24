@@ -1,0 +1,20 @@
+{
+  "candle_min": 1,
+  "situacao": "sinal significativo",
+  "janela_m_usada": 12,
+  "features": [
+    "ret_0",
+    "ret_1",
+    "ret_2",
+    "vol_20",
+    "hora"
+  ],
+  "rf_params": {
+    "n_estimators": 200,
+    "max_depth": 5,
+    "min_samples_leaf": 0.01,
+    "max_features": 1.0,
+    "max_samples": 0.5,
+    "random_state": 42
+  }
+}

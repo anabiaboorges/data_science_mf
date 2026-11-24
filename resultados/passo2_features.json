@@ -1,0 +1,50 @@
+{
+  "candle_min": 1,
+  "conjunto": "todas as candidatas",
+  "situacao": "sinal significativo",
+  "features": [
+    "ret_0",
+    "ret_1",
+    "ret_2",
+    "ret_acum_5c",
+    "ret_acum_15c",
+    "ret_acum_60c",
+    "ret_dia",
+    "pos_range_dia",
+    "hora",
+    "vol_20",
+    "vol_60",
+    "vol_razao",
+    "rv_dia_ant",
+    "rv_media_5d",
+    "range_hl",
+    "corpo",
+    "pos_fech_candle",
+    "vol_rel",
+    "gap_abertura",
+    "wdo_ret_0",
+    "wdo_ret_acum_15c"
+  ],
+  "pre_selecionadas": [
+    "ret_acum_15c",
+    "pos_range_dia",
+    "ret_acum_60c",
+    "wdo_ret_acum_15c",
+    "ret_acum_5c",
+    "vol_razao",
+    "ret_1",
+    "ret_2",
+    "rv_media_5d",
+    "rv_dia_ant",
+    "vol_60",
+    "hora",
+    "range_hl"
+  ],
+  "confirmadas_permutacao": [
+    "ret_acum_15c",
+    "pos_range_dia",
+    "ret_acum_5c",
+    "ret_1",
+    "ret_2"
+  ]
+}

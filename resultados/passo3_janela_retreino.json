@@ -1,0 +1,40 @@
+{
+  "candle_min": 1,
+  "features": [
+    "ret_0",
+    "ret_1",
+    "ret_2",
+    "ret_acum_5c",
+    "ret_acum_15c",
+    "ret_acum_60c",
+    "ret_dia",
+    "pos_range_dia",
+    "hora",
+    "vol_20",
+    "vol_60",
+    "vol_razao",
+    "rv_dia_ant",
+    "rv_media_5d",
+    "range_hl",
+    "corpo",
+    "pos_fech_candle",
+    "vol_rel",
+    "gap_abertura",
+    "wdo_ret_0",
+    "wdo_ret_acum_15c"
+  ],
+  "janela": 12,
+  "retreino": "semestral",
+  "situacao": "sinal significativo",
+  "envelhecimento": "a correlação CAI com a idade do modelo: favorece retreino mais frequente",
+  "inclinacao_envelhecimento_por_mes": -0.0020781729412784546,
+  "t_inclinacao": -2.4682005173836585,
+  "rf_passo3": {
+    "n_estimators": 100,
+    "max_depth": 5,
+    "min_samples_leaf": 0.01,
+    "max_features": 1.0,
+    "random_state": 42,
+    "lim_linhas_arvore": 50000
+  }
+}

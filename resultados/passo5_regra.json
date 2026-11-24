@@ -1,0 +1,17 @@
+{
+  "regra": {
+    "folha": 0.05,
+    "corte": 0.05,
+    "lado": "ambos",
+    "H": 120,
+    "tp": null,
+    "sl": 1.5,
+    "filtro": "nenhum"
+  },
+  "situacao": "NÃO OPERAR: a regra não passou nos critérios (congelada só como registro)",
+  "aprovada": false,
+  "n_combinacoes_grade": 72,
+  "n_elegiveis_2022_2023": 45,
+  "n_finalistas_2024": 3,
+  "n_exploratorias_2024": 24
+}

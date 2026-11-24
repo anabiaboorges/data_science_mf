@@ -1,0 +1,37 @@
+{
+  "candle_min": 1,
+  "features": [
+    "ret_0",
+    "ret_1",
+    "ret_2",
+    "ret_acum_5c",
+    "ret_acum_15c",
+    "ret_acum_60c",
+    "ret_dia",
+    "pos_range_dia",
+    "hora",
+    "vol_20",
+    "vol_60",
+    "vol_razao",
+    "rv_dia_ant",
+    "rv_media_5d",
+    "range_hl",
+    "corpo",
+    "pos_fech_candle",
+    "vol_rel",
+    "gap_abertura",
+    "wdo_ret_0",
+    "wdo_ret_acum_15c"
+  ],
+  "janela": 12,
+  "retreino": "semestral",
+  "rf": {
+    "n_estimators": 50,
+    "max_depth": 2,
+    "min_samples_leaf": 0.1,
+    "max_features": "sqrt",
+    "max_samples": 0.5,
+    "lim_linhas_arvore": 50000
+  },
+  "situacao": "sinal significativo"
+}
