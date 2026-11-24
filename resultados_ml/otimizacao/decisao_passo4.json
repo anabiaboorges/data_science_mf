@@ -1,0 +1,14 @@
+{
+  "passo": "4 - candle × janela",
+  "criterio": "nenhuma candidata: maior t do ganho bruto (sinal mais confiável)",
+  "candle": "1min",
+  "janela_meses": 12,
+  "n_candidatas": 0,
+  "spearman": 0.01931707230482203,
+  "bruto_pts": 0.4006982211647405,
+  "bruto_t": 3.5747005283797657,
+  "melhor_regra": "segurar",
+  "melhor_limiar_q": 0.75,
+  "melhor_esperanca": -1.8726008922087354,
+  "melhor_t": -1.295167469070706
+}

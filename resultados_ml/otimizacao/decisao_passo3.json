@@ -1,0 +1,14 @@
+{
+  "passo": "3 - regra de saída",
+  "criterio": "nenhuma candidata: regra decidida no fim, com o modelo final",
+  "regra": null,
+  "n_candidatas": 0,
+  "melhor_diagnostico": {
+    "limiar_q": 0.75,
+    "saida": "virar",
+    "max_candles": "sem",
+    "horario": "pregao_todo",
+    "esperanca_pts": -1.8726008922087354,
+    "t_stat": -1.295167469070706
+  }
+}

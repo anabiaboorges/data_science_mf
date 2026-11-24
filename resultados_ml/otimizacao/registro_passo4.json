@@ -1,0 +1,41 @@
+{
+  "passo": "4 - candle × janela",
+  "abordagem": "B (classificador 3 classes, sinal = P(sobe) − P(desce))",
+  "candles": [
+    "1min",
+    "5min",
+    "15min",
+    "60min"
+  ],
+  "janelas_meses": [
+    1,
+    3,
+    6,
+    12
+  ],
+  "floresta": {
+    "n_estimators": 100,
+    "max_depth": 4,
+    "max_features": 0.5,
+    "folha_frac": 0.02,
+    "folha_min": 10
+  },
+  "corte_classe_pts": 5.0,
+  "custo_pts": 5.0,
+  "quantis": [
+    0.0,
+    0.5,
+    0.75,
+    0.9,
+    0.95,
+    0.98
+  ],
+  "regras": [
+    "por_candle",
+    "segurar"
+  ],
+  "criterio_candidata": "esperança > 0, t ≥ 2.0, lucro em ≥ 3 de 4 trimestres",
+  "criterio_com_candidatas": "maior retorno sobre capital",
+  "criterio_sem_candidatas": "maior t do ganho bruto (custo 0, todo candle)",
+  "periodo": "validação 2024"
+}

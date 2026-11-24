@@ -1,0 +1,28 @@
+{
+  "passo": "3 - regra de saída",
+  "candle": "1min",
+  "janela_meses": 12,
+  "quantis_entrada": [
+    0.5,
+    0.75,
+    0.9,
+    0.95
+  ],
+  "saidas": [
+    "virar_0.0",
+    "enfraquecer_0.0",
+    "enfraquecer_0.5"
+  ],
+  "max_candles": [
+    "None",
+    "5",
+    "10",
+    "20"
+  ],
+  "horarios": [
+    "pregao_todo",
+    "9h15-17h30"
+  ],
+  "custo_pts": 5.0,
+  "criterio": "candidata: esperança > 0, t ≥ 2, ≥ 3 trimestres; se nenhuma, regra decidida no fim com o modelo final"
+}

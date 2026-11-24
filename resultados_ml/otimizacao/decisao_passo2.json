@@ -1,0 +1,18 @@
+{
+  "passo": "2 - abordagem",
+  "candle": "1min",
+  "janela_meses": 12,
+  "custo_pts": 5.0,
+  "margem_R": 150.0,
+  "criterio": "nenhuma candidata: abordagem escolhida pelo maior t do ganho bruto (qualidade do sinal); linha mostrada = sua melhor regra, só como diagnóstico",
+  "n_candidatas": 0,
+  "abordagem": "B_classif_dif_prob",
+  "regra": "segurar",
+  "limiar": "q75%",
+  "limiar_valor": 0.015952640937605067,
+  "esperanca_pts": -1.8726008922087354,
+  "t_stat": -1.295167469070706,
+  "lucro_R": -3610.0,
+  "retorno_capital": -0.7198404785643071,
+  "trimestres_positivos": 2
+}

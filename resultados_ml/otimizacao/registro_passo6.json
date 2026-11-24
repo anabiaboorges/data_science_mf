@@ -1,0 +1,120 @@
+{
+  "passo": "6 - hiperparâmetros",
+  "candle": "1min",
+  "janela_meses": 12,
+  "variante": "base+todas",
+  "modelos": {
+    "d4_f0.5_c5": {
+      "rf": {
+        "n_estimators": 100,
+        "max_depth": 4,
+        "max_features": 0.5,
+        "folha_frac": 0.005,
+        "folha_min": 10
+      },
+      "corte_classe": 5.0
+    },
+    "d4_f1_c5": {
+      "rf": {
+        "n_estimators": 100,
+        "max_depth": 4,
+        "max_features": 0.5,
+        "folha_frac": 0.01,
+        "folha_min": 10
+      },
+      "corte_classe": 5.0
+    },
+    "d4_f2_c5": {
+      "rf": {
+        "n_estimators": 100,
+        "max_depth": 4,
+        "max_features": 0.5,
+        "folha_frac": 0.02,
+        "folha_min": 10
+      },
+      "corte_classe": 5.0
+    },
+    "d6_f0.5_c5": {
+      "rf": {
+        "n_estimators": 100,
+        "max_depth": 6,
+        "max_features": 0.5,
+        "folha_frac": 0.005,
+        "folha_min": 10
+      },
+      "corte_classe": 5.0
+    },
+    "d6_f1_c5": {
+      "rf": {
+        "n_estimators": 100,
+        "max_depth": 6,
+        "max_features": 0.5,
+        "folha_frac": 0.01,
+        "folha_min": 10
+      },
+      "corte_classe": 5.0
+    },
+    "d6_f2_c5": {
+      "rf": {
+        "n_estimators": 100,
+        "max_depth": 6,
+        "max_features": 0.5,
+        "folha_frac": 0.02,
+        "folha_min": 10
+      },
+      "corte_classe": 5.0
+    },
+    "d8_f0.5_c5": {
+      "rf": {
+        "n_estimators": 100,
+        "max_depth": 8,
+        "max_features": 0.5,
+        "folha_frac": 0.005,
+        "folha_min": 10
+      },
+      "corte_classe": 5.0
+    },
+    "d8_f1_c5": {
+      "rf": {
+        "n_estimators": 100,
+        "max_depth": 8,
+        "max_features": 0.5,
+        "folha_frac": 0.01,
+        "folha_min": 10
+      },
+      "corte_classe": 5.0
+    },
+    "d8_f2_c5": {
+      "rf": {
+        "n_estimators": 100,
+        "max_depth": 8,
+        "max_features": 0.5,
+        "folha_frac": 0.02,
+        "folha_min": 10
+      },
+      "corte_classe": 5.0
+    },
+    "d4_f2_c3": {
+      "rf": {
+        "n_estimators": 100,
+        "max_depth": 4,
+        "max_features": 0.5,
+        "folha_frac": 0.02,
+        "folha_min": 10
+      },
+      "corte_classe": 3.0
+    },
+    "d4_f2_c10": {
+      "rf": {
+        "n_estimators": 100,
+        "max_depth": 4,
+        "max_features": 0.5,
+        "folha_frac": 0.02,
+        "folha_min": 10
+      },
+      "corte_classe": 10.0
+    }
+  },
+  "criterio_candidata": "esperança > 0, t ≥ 2.0, ≥ 3 trimestres positivos",
+  "criterio_sem_candidatas": "maior t do ganho bruto"
+}

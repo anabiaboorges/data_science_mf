@@ -1,0 +1,60 @@
+{
+  "abordagem": "B: RandomForestClassifier 3 classes, sinal = P(sobe) − P(desce)",
+  "candle": "1min",
+  "janela_meses": 12,
+  "retreino": "trimestral",
+  "variaveis": [
+    "ret_lag1",
+    "ret_lag2",
+    "ret_lag3",
+    "ret_lag4",
+    "ret_lag5",
+    "ret_lag6",
+    "ret_lag7",
+    "ret_lag8",
+    "ret_lag9",
+    "ret_lag10",
+    "amplitude",
+    "corpo",
+    "vol_rel",
+    "volat",
+    "hora",
+    "candle_do_dia",
+    "ret_acum5",
+    "ret_acum15",
+    "ret_acum30",
+    "ret_acum60",
+    "volat15",
+    "volat60",
+    "vol_rel15",
+    "amplitude15",
+    "dist_vwap",
+    "pos_range_dia",
+    "ret_dia",
+    "gap_abertura",
+    "max_dia_dist",
+    "min_dia_dist"
+  ],
+  "n_variaveis": 30,
+  "floresta": {
+    "n_estimators": 100,
+    "max_depth": 4,
+    "max_features": 0.5,
+    "folha_frac": 0.02,
+    "folha_min": 10
+  },
+  "corte_classe_pts": 5.0,
+  "custo_escolha_pts": 5.0,
+  "regra_oficial": {
+    "nome": "opera sempre",
+    "limiar": 0.0,
+    "motivo": "nenhuma regra com esperança > 0, t ≥ 2 e ≥ 3 trimestres na validação"
+  },
+  "regra_sensibilidade": {
+    "nome": "por_candle, 2% mais fortes",
+    "limiar_q": 0.98,
+    "limiar": 0.03624652315710347,
+    "motivo": "melhor esperança da validação com o modelo final, sem passar na trava"
+  },
+  "congelado_antes_do_teste": true
+}

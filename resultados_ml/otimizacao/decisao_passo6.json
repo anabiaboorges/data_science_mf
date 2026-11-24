@@ -1,0 +1,17 @@
+{
+  "passo": "6 - hiperparâmetros",
+  "criterio": "nenhuma candidata: maior t do ganho bruto",
+  "modelo": "d4_f2_c5",
+  "rf": {
+    "n_estimators": 100,
+    "max_depth": 4,
+    "max_features": 0.5,
+    "folha_frac": 0.02,
+    "folha_min": 10
+  },
+  "corte_classe": 5.0,
+  "n_candidatas": 0,
+  "spearman": 0.019240432073884657,
+  "bruto_pts": 0.4689624405166553,
+  "bruto_t": 4.18376783571807
+}
